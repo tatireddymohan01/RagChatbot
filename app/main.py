@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 from app.api import chat, ingest, health
 from app.core.config import get_settings
 from app.utils.logger import get_logger
@@ -25,7 +26,19 @@ async def lifespan(app: FastAPI):
     logger.info("Starting RAG Chatbot API...")
     settings = get_settings()
     logger.info(f"Application: {settings.app_name} v{settings.app_version}")
-    logger.info(f"Model: {settings.model_name}")
+    
+    # Log which models are being used
+    if settings.use_huggingface_llm:
+        logger.info(f"LLM: {settings.huggingface_llm_model} (Hugging Face)")
+    else:
+        logger.info(f"LLM: {settings.model_name} (OpenAI)")
+    
+    if settings.use_huggingface_embeddings:
+        logger.info(f"Embeddings: {settings.huggingface_model_name} (Hugging Face)")
+    else:
+        logger.info(f"Embeddings: {settings.embedding_model} (OpenAI)")
+    
+    logger.info(f"HF Cache Dir: {settings.huggingface_cache_dir}")
     logger.info(f"FAISS Index Path: {settings.faiss_index_path}")
     
     # Initialize components (lazy loading will happen on first use)
@@ -53,11 +66,17 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-# Mount static files and templates
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+# Mount static files and templates only if not in API-only mode
+templates: Optional[Jinja2Templates] = None
+if not settings.api_only:
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    templates = Jinja2Templates(directory="app/templates")
+    logger.info("UI serving enabled")
+else:
+    logger.info("Running in API-only mode (UI disabled)")
 
 # Include routers
 app.include_router(health.router, tags=["Health"])
@@ -67,7 +86,22 @@ app.include_router(ingest.router, tags=["Ingestion"])
 
 @app.get("/")
 async def root(request: Request):
-    """Root endpoint - Serve the chat UI"""
+    """Root endpoint - Serve the chat UI or API info"""
+    if settings.api_only or templates is None:
+        return {
+            "message": "RAG Chatbot API",
+            "version": "1.0.0",
+            "mode": "API-only",
+            "docs": "/docs",
+            "redoc": "/redoc",
+            "health": "/health",
+            "endpoints": {
+                "chat": "POST /chat",
+                "ingest_text": "POST /ingest/text",
+                "ingest_file": "POST /ingest/file",
+                "ingest_url": "POST /ingest/url"
+            }
+        }
     return templates.TemplateResponse("index.html", {"request": request})
 
 
@@ -77,9 +111,11 @@ async def api_info():
     return {
         "message": "RAG Chatbot API",
         "version": "1.0.0",
+        "mode": "API-only" if settings.api_only else "Full (API + UI)",
         "docs": "/docs",
+        "redoc": "/redoc",
         "health": "/health",
-        "ui": "/"
+        "ui": "/" if not settings.api_only else None
     }
 
 

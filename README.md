@@ -1,19 +1,33 @@
-# 🤖 RAG Chatbot Backend
+# 🤖 RAG Chatbot - Full Stack AI Application
 
-Production-grade chatbot backend using **FastAPI** + **LangChain** with **Retrieval Augmented Generation (RAG)**.
+Production-grade chatbot using **FastAPI** + **LangChain** with **Retrieval Augmented Generation (RAG)**. Supports both monolithic and separated frontend/backend deployment.
 
 ## 🌟 Features
 
-- ✅ **Interactive Web UI** - Beautiful chat interface with document management
-- ✅ **REST API** with FastAPI
-- ✅ **RAG Architecture** using LangChain
+### Core Features
+- ✅ **REST API** with FastAPI - Clean, well-documented API
+- ✅ **RAG Architecture** using LangChain - Context-aware responses
 - ✅ **Multi-format Document Support** (PDF, DOCX, TXT)
 - ✅ **Web Scraping** for URL content ingestion
 - ✅ **FAISS Vector Store** with persistence
 - ✅ **Conversational Memory** for multi-turn dialogues
-- ✅ **OpenAI GPT-4** integration
+- ✅ **OpenAI GPT-4** integration with general knowledge fallback
 - ✅ **Production-ready** with logging, error handling, CORS
-- ✅ **Azure deployment ready**
+
+### UI & UX
+- ✅ **Professional Web UI** - Modern, demo-ready interface
+- ✅ **Standalone Frontend** - Deploy independently from API
+- ✅ **Toast notifications** and visual feedback
+- ✅ **Responsive design** - Mobile, tablet, and desktop optimized
+- ✅ **Live statistics** - Document and message counters
+
+### Deployment & Integration
+- ✅ **Separated Architecture** - API-only mode for external frontends
+- ✅ **Docker containerization** - Multi-stage builds
+- ✅ **CI/CD with GitHub Actions** - Automated testing and deployment
+- ✅ **Azure App Service** deployment ready
+- ✅ **Flexible CORS** - Configure for any frontend domain
+- ✅ **Integration examples** - React, Vue, Angular, Python, Node.js
 
 ## 📁 Project Structure
 
@@ -46,10 +60,17 @@ RagChatbot/
 │   │   └── logger.py          # Logging configuration
 │   └── data/                   # Data storage
 │       └── faiss_index/       # FAISS vector store
+├── .github/workflows/          # CI/CD pipelines
+│   └── azure-deploy.yml       # Azure deployment workflow
+├── Dockerfile                  # Docker container configuration
+├── docker-compose.yml          # Docker Compose orchestration
+├── .dockerignore              # Docker build exclusions
 ├── requirements.txt            # Python dependencies
 ├── .env.example               # Environment variables template
 ├── .gitignore                 # Git ignore rules
-└── README.md                  # This file
+├── README.md                  # This file
+├── AZURE_DEPLOYMENT.md        # Azure deployment guide
+└── DOCKER_DEPLOYMENT.md       # Docker & deployment guide
 ```
 
 ## 🚀 Quick Start
@@ -117,6 +138,48 @@ The API will be available at: `http://localhost:8000`
 - **Web UI**: http://localhost:8000/ (Interactive chat interface)
 - **Swagger UI**: http://localhost:8000/docs (API documentation)
 - **ReDoc**: http://localhost:8000/redoc (Alternative API docs)
+
+## 🏗️ Deployment Modes
+
+This application supports two deployment architectures:
+
+### 1. **Monolithic (Default)**
+Full-stack deployment with API and UI served from the same server.
+
+```env
+API_ONLY=false  # or omit this variable
+```
+
+**Use when:**
+- Simple deployments
+- Quick demos
+- Small-scale applications
+
+### 2. **Separated (Microservices)**
+API and Frontend deployed independently for better scalability.
+
+**Backend (API-only):**
+```env
+API_ONLY=true
+CORS_ORIGINS=["https://your-frontend.com"]
+```
+
+**Frontend (Standalone):**
+```javascript
+// frontend/config.js
+API_BASE_URL: 'https://your-api-domain.com'
+```
+
+**Use when:**
+- Integrating with existing applications
+- Multiple frontend applications
+- Better scalability and independent updates
+- Mobile app backends
+
+**Learn more:**
+- [📖 API Documentation](./API_DOCUMENTATION.md) - Complete API reference
+- [🔧 Separated Architecture Guide](./SEPARATED_ARCHITECTURE.md) - Deployment options
+- [💡 Integration Examples](./INTEGRATION_EXAMPLES.md) - React, Vue, Python, etc.
 
 ## 📚 API Endpoints
 
@@ -417,7 +480,61 @@ docker run -p 8000:8000 --env-file .env rag-chatbot
 pip install --upgrade -r requirements.txt
 ```
 
-## 📖 How It Works
+## � Docker & Deployment
+
+### Run with Docker
+
+```bash
+# Build image
+docker build -t ragchatbot:latest .
+
+# Run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+Access at: http://localhost:8000
+
+### Deploy to Azure App Service
+
+Complete deployment guide: [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
+
+**Quick Azure Setup:**
+```bash
+# Create resources
+az group create --name rg-ragchatbot --location eastus
+az acr create --resource-group rg-ragchatbot --name ragchatbotacr --sku Basic
+az appservice plan create --name plan-ragchatbot --resource-group rg-ragchatbot --is-linux --sku B1
+az webapp create --resource-group rg-ragchatbot --plan plan-ragchatbot --name ragchatbot-app \
+  --deployment-container-image-name ragchatbotacr.azurecr.io/ragchatbot:latest
+
+# Configure
+az webapp config appsettings set --name ragchatbot-app --resource-group rg-ragchatbot \
+  --settings OPENAI_API_KEY="sk-xxx" WEBSITES_PORT="8000"
+```
+
+### CI/CD Pipeline
+
+Automated deployment with GitHub Actions:
+- **Push to `main`**: Deploy to production
+- **Push to `develop`**: Deploy to staging  
+- **Pull requests**: Run tests
+
+Setup: Add secrets in GitHub → Settings → Secrets:
+- `AZURE_CREDENTIALS`
+- `AZURE_REGISTRY_LOGIN_SERVER`
+- `AZURE_REGISTRY_USERNAME`
+- `AZURE_REGISTRY_PASSWORD`
+- `OPENAI_API_KEY`
+
+See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for more deployment options (AWS, GCP, Kubernetes).
+
+## �📖 How It Works
 
 ### RAG Pipeline
 
@@ -446,6 +563,18 @@ The system enforces strict grounding:
 - No external knowledge allowed
 - Cite sources when possible
 
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [API Documentation](./API_DOCUMENTATION.md) | Complete REST API reference with examples |
+| [Separated Architecture Guide](./SEPARATED_ARCHITECTURE.md) | Deploy frontend and backend independently |
+| [Integration Examples](./INTEGRATION_EXAMPLES.md) | Code examples for React, Vue, Python, Node.js, etc. |
+| [Azure Deployment](./AZURE_DEPLOYMENT.md) | Step-by-step Azure deployment guide |
+| [Docker Deployment](./DOCKER_DEPLOYMENT.md) | Docker, AWS, GCP, Kubernetes deployment |
+| [General Knowledge Guide](./GENERAL_KNOWLEDGE_GUIDE.md) | Configure AI fallback behavior |
+| [Frontend README](./frontend/README.md) | Standalone frontend deployment |
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please:
@@ -471,8 +600,17 @@ This project is licensed under the MIT License.
 
 For issues and questions:
 - Open an issue on GitHub
-- Check the API documentation at `/docs`
-- Review logs in `logs/` directory
+- Check the [API Guide](./API_GUIDE.md) for integration details
+- See [Deployment Guide](./DEPLOYMENT.md) for setup instructions
+- Check server logs in `logs/` directory
+
+## 🚀 Use Cases
+
+- **Customer Support** - Answer questions from documentation
+- **Knowledge Management** - Search and query internal documents
+- **Research Assistant** - Extract insights from research papers
+- **Educational Tools** - Interactive learning from textbooks
+- **Content Q&A** - Website chatbots for content-based queries
 
 ---
 

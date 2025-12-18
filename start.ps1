@@ -18,20 +18,24 @@ if (-not (Test-Path ".env")) {
     exit 1
 }
 
-# Check if OPENAI_API_KEY is set
-$envContent = Get-Content ".env" | Select-String "OPENAI_API_KEY="
-if ($envContent -match "your-openai-api-key-here") {
-    Write-Host "❌ Please set your OPENAI_API_KEY in .env file" -ForegroundColor Red
-    Write-Host "Edit .env and replace 'your-openai-api-key-here' with your actual API key" -ForegroundColor Yellow
-    exit 1
-}
+# Check configuration
+$useHF = (Get-Content ".env" | Select-String "USE_HUGGINGFACE_LLM=true") -ne $null
+$openaiKey = Get-Content ".env" | Select-String "OPENAI_API_KEY="
 
-Write-Host "✅ Configuration loaded" -ForegroundColor Green
+if ($useHF) {
+    Write-Host "✅ Using HuggingFace models (local)" -ForegroundColor Green
+} elseif ($openaiKey -and $openaiKey -notmatch "your-openai-api-key-here|sk-proj-") {
+    Write-Host "⚠️  OpenAI API key may not be set correctly" -ForegroundColor Yellow
+    Write-Host "Set USE_HUGGINGFACE_LLM=true to use local models instead" -ForegroundColor Gray
+} else {
+    Write-Host "✅ Configuration loaded" -ForegroundColor Green
+}
 Write-Host ""
 Write-Host "📡 Server will start at: http://localhost:8000" -ForegroundColor Cyan
 Write-Host "📚 API Docs at: http://localhost:8000/docs" -ForegroundColor Cyan
-Write-Host "🌐 Web UI at: http://localhost:8000/ui" -ForegroundColor Cyan
+Write-Host "🌐 Web UI at: http://localhost:8000/" -ForegroundColor Cyan
 Write-Host ""
+Write-Host "💡 Tip: You can also run with Docker: docker-compose up -d" -ForegroundColor Gray
 Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
 Write-Host ""
 

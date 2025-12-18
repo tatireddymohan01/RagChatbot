@@ -6,8 +6,9 @@ from typing import List, Dict, Optional, Tuple
 from langchain_classic.chains import ConversationalRetrievalChain
 from langchain_classic.memory import ConversationBufferMemory
 from langchain_core.messages import HumanMessage, AIMessage
-from app.core.llm import get_llm, DEFAULT_SYSTEM_PROMPT
+from app.core.llm import get_llm, get_system_prompt
 from app.core.vectorstore import get_vectorstore_manager
+from app.core.config import get_settings
 from app.schemas.chat_schema import ChatMessage, SourceDocument
 from app.utils.logger import get_logger
 
@@ -21,14 +22,19 @@ class RAGChainService:
         self.llm = get_llm()
         self.vectorstore_manager = get_vectorstore_manager()
         self.sessions: Dict[str, ConversationBufferMemory] = {}
+        self.settings = get_settings()
         
-        # Custom prompt template for RAG
-        self.system_template = f"""{DEFAULT_SYSTEM_PROMPT}
+        # Get system prompt based on configuration
+        system_prompt = get_system_prompt(self.settings.allow_general_knowledge)
+        
+        # Custom prompt template for RAG with fallback
+        self.system_template = f"""{system_prompt}
 
 Context from retrieved documents:
 {{context}}
 
-Based on the above context, answer the following question."""
+If the context above contains relevant information, use it to answer the question.
+If the context is insufficient or irrelevant, use your general knowledge to provide a helpful answer."""
         
         self.human_template = "{question}"
     
@@ -79,8 +85,23 @@ Based on the above context, answer the following question."""
             retriever = self.vectorstore_manager.get_retriever()
             
             if retriever is None:
-                logger.warning("No documents in vector store")
-                return "I don't have any documents to answer from. Please ingest some documents first.", []
+                if self.settings.allow_general_knowledge:
+                    logger.warning("No documents in vector store, using general knowledge")
+                    # Use LLM directly without retrieval
+                    from langchain_core.prompts import ChatPromptTemplate
+                    from langchain_core.output_parsers import StrOutputParser
+                    
+                    system_prompt = get_system_prompt(True)
+                    prompt = ChatPromptTemplate.from_messages([
+                        ("system", system_prompt + "\n\nNo documents are available, so please answer using your general knowledge."),
+                        ("user", "{question}")
+                    ])
+                    chain = prompt | self.llm | StrOutputParser()
+                    answer = chain.invoke({"question": question})
+                    return answer, []
+                else:
+                    logger.warning("No documents in vector store and general knowledge disabled")
+                    return "I don't have any documents to answer from. Please ingest some documents first.", []
             
             logger.info(f"Processing query: {question[:100]}...")
             

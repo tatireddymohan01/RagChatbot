@@ -1,5 +1,5 @@
-// API Base URL
-const API_BASE_URL = window.location.origin;
+// Get API Base URL from configuration
+const API_BASE_URL = CONFIG.API_BASE_URL;
 
 // Session ID for conversation continuity
 let sessionId = `user-${Date.now()}`;
@@ -29,6 +29,7 @@ let messagesSent = 0;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    if (CONFIG.DEBUG) console.log('Initializing frontend with API:', API_BASE_URL);
     checkHealth();
     setupEventListeners();
     autoResizeTextarea();
@@ -76,11 +77,14 @@ async function checkHealth() {
             <p><strong>Service:</strong> <span>${data.service}</span></p>
             <p><strong>Model:</strong> <span>${data.model}</span></p>
             <p><strong>Version:</strong> <span>${data.version}</span></p>
+            <p><strong>API:</strong> <span style="font-size: 0.8em; color: var(--text-secondary);">${API_BASE_URL}</span></p>
         `;
     } catch (error) {
+        if (CONFIG.DEBUG) console.error('Health check failed:', error);
         systemStatus.innerHTML = `
             <p><strong>Status:</strong> <span style="color: var(--danger-color); display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; background: var(--danger-color); border-radius: 50%; display: inline-block;"></span> Offline</span></p>
             <p style="margin: 0;"><span>Unable to connect to the API</span></p>
+            <p style="font-size: 0.8em; color: var(--text-secondary); margin-top: 8px;">${API_BASE_URL}</p>
         `;
     }
 }
@@ -107,6 +111,8 @@ async function sendMessage() {
     sendBtn.innerHTML = '<span class="loading"></span>';
     
     try {
+        if (CONFIG.DEBUG) console.log('Sending chat request:', { query, session_id: sessionId });
+        
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',
             headers: {
@@ -125,6 +131,8 @@ async function sendMessage() {
         
         const data = await response.json();
         
+        if (CONFIG.DEBUG) console.log('Chat response:', data);
+        
         // Add to chat history
         chatHistory.push(
             { role: 'user', content: query },
@@ -136,8 +144,8 @@ async function sendMessage() {
         
     } catch (error) {
         console.error('Error:', error);
-        addMessage('bot', '❌ Sorry, I encountered an error. Please make sure the API is running and documents are ingested.', []);
-        showToast('Failed to get response', 'error');
+        addMessage('bot', '❌ Sorry, I encountered an error. Please make sure the API is running and accessible.', []);
+        showToast('Failed to get response from API', 'error');
     } finally {
         sendBtn.disabled = false;
         sendBtn.innerHTML = `
@@ -264,6 +272,8 @@ async function uploadDocuments() {
     }
     
     try {
+        if (CONFIG.DEBUG) console.log('Uploading files:', files);
+        
         const response = await fetch(`${API_BASE_URL}/ingest/docs`, {
             method: 'POST',
             body: formData
@@ -316,6 +326,8 @@ async function ingestUrl() {
     ingestUrlBtn.innerHTML = '<span class="loading"></span> Ingesting...';
     
     try {
+        if (CONFIG.DEBUG) console.log('Ingesting URL:', url);
+        
         const response = await fetch(`${API_BASE_URL}/ingest/url`, {
             method: 'POST',
             headers: {

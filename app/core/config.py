@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = Field(default=False, description="Debug mode")
     
-    # OpenAI Configuration
-    openai_api_key: str = Field(..., description="OpenAI API key")
+    # OpenAI Configuration (Optional when using Hugging Face)
+    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key")
     model_name: str = Field(default="gpt-4o-mini", description="OpenAI model name")
     temperature: float = Field(default=0.0, description="LLM temperature")
     
@@ -36,6 +36,24 @@ class Settings(BaseSettings):
         description="HuggingFace embedding model"
     )
     
+    # Hugging Face LLM Configuration
+    use_huggingface_llm: bool = Field(
+        default=False,
+        description="Use HuggingFace LLM instead of OpenAI"
+    )
+    huggingface_llm_model: str = Field(
+        default="mistralai/Mistral-7B-Instruct-v0.1",
+        description="HuggingFace LLM model"
+    )
+    huggingface_api_token: Optional[str] = Field(
+        default=None,
+        description="Hugging Face API token (for private models)"
+    )
+    huggingface_cache_dir: str = Field(
+        default="D:/HuggingFace/cache",
+        description="Hugging Face cache directory path"
+    )
+    
     # Vector Store Configuration
     faiss_index_path: str = Field(
         default="app/data/faiss_index",
@@ -46,11 +64,21 @@ class Settings(BaseSettings):
     
     # RAG Configuration
     retrieval_k: int = Field(default=4, description="Number of documents to retrieve")
+    allow_general_knowledge: bool = Field(
+        default=True,
+        description="Allow AI to use general knowledge when documents don't contain the answer"
+    )
     
     # CORS Configuration
     cors_origins: list = Field(
         default=["*"],
         description="Allowed CORS origins"
+    )
+    
+    # API Mode Configuration
+    api_only: bool = Field(
+        default=False,
+        description="Run in API-only mode (no UI serving)"
     )
     
     # Server Configuration

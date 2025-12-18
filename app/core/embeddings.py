@@ -26,6 +26,7 @@ def get_embeddings() -> Union[OpenAIEmbeddings, HuggingFaceEmbeddings]:
             logger.info(f"Initializing HuggingFace embeddings: {settings.huggingface_model_name}")
             embeddings = HuggingFaceEmbeddings(
                 model_name=settings.huggingface_model_name,
+                cache_folder=settings.huggingface_cache_dir,
                 model_kwargs={'device': 'cpu'},
                 encode_kwargs={'normalize_embeddings': True}
             )
@@ -48,6 +49,7 @@ def get_embeddings() -> Union[OpenAIEmbeddings, HuggingFaceEmbeddings]:
             logger.warning("Falling back to HuggingFace embeddings")
             try:
                 embeddings = HuggingFaceEmbeddings(
+                    cache_folder=settings.huggingface_cache_dir,
                     model_name=settings.huggingface_model_name,
                     model_kwargs={'device': 'cpu'},
                     encode_kwargs={'normalize_embeddings': True}
