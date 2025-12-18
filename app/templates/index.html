@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Chatbot</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🤖 RAG Chatbot</h1>
+            <p>Ask questions about your ingested documents</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar for Document Management -->
+            <aside class="sidebar">
+                <h2>📚 Document Management</h2>
+                
+                <!-- Upload Documents -->
+                <div class="section">
+                    <h3>Upload Files</h3>
+                    <input type="file" id="fileInput" multiple accept=".pdf,.docx,.doc,.txt">
+                    <button id="uploadBtn" class="btn btn-primary">Upload Documents</button>
+                    <div id="uploadStatus" class="status"></div>
+                </div>
+
+                <!-- Ingest URL -->
+                <div class="section">
+                    <h3>Ingest from URL</h3>
+                    <input type="url" id="urlInput" placeholder="https://example.com">
+                    <button id="ingestUrlBtn" class="btn btn-primary">Ingest URL</button>
+                    <div id="urlStatus" class="status"></div>
+                </div>
+
+                <!-- System Status -->
+                <div class="section">
+                    <h3>System Status</h3>
+                    <div id="systemStatus" class="status-info">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="chat-area">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="welcome-message">
+                        <h2>👋 Welcome!</h2>
+                        <p>Start by uploading documents or ingesting a URL, then ask me anything about them.</p>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-area">
+                    <input type="text" id="messageInput" placeholder="Ask a question about your documents..." />
+                    <button id="sendBtn" class="btn btn-send">Send</button>
+                    <button id="clearBtn" class="btn btn-secondary">Clear Chat</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

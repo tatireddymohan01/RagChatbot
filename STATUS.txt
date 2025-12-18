@@ -1,0 +1,49 @@
+========================================
+🤖 RAG CHATBOT - READY TO RUN
+========================================
+
+STATUS: ⏳ Installing packages (will take 5-10 minutes)
+
+STEPS TO RUN:
+-------------
+
+1. ✅ DONE - Virtual environment activated
+2. ⏳ WAIT - Packages installing (check terminal)
+3. ⚠️  TODO - Add your OpenAI API key to .env file:
+   
+   Open: .env
+   Change: OPENAI_API_KEY=your-openai-api-key-here
+   To:     OPENAI_API_KEY=sk-your-actual-key
+
+4. 🚀 RUN - Start the server:
+   
+   .\start.ps1
+   
+   OR manually:
+   python -m uvicorn app.main:app --reload
+
+5. 🌐 ACCESS:
+   
+   Web UI:   http://localhost:8000/ui
+   API Docs: http://localhost:8000/docs
+   Health:   http://localhost:8000/health
+
+========================================
+⚡ QUICK TEST
+========================================
+
+After starting the server:
+
+1. Ingest a Wikipedia page:
+   
+   $body = @{url="https://en.wikipedia.org/wiki/Machine_learning"} | ConvertTo-Json
+   Invoke-RestMethod -Uri "http://localhost:8000/ingest/url" -Method Post -Body $body -ContentType "application/json"
+
+2. Ask a question:
+   
+   $body = @{query="What is machine learning?"} | ConvertTo-Json
+   Invoke-RestMethod -Uri "http://localhost:8000/chat" -Method Post -Body $body -ContentType "application/json"
+
+========================================
+
+NEXT: Wait for packages to finish, then add your API key to .env
