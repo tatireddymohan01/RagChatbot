@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 from app.api import chat, ingest, health
 from app.core.config import get_settings
+from app.services.document_monitor import get_document_monitor
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -40,6 +41,19 @@ async def lifespan(app: FastAPI):
     
     logger.info(f"HF Cache Dir: {settings.huggingface_cache_dir}")
     logger.info(f"FAISS Index Path: {settings.faiss_index_path}")
+    logger.info(f"Documents Folder: {settings.documents_folder}")
+    
+    # Auto-process new documents from folder
+    try:
+        logger.info("Checking for new documents in folder...")
+        monitor = get_document_monitor()
+        result = monitor.process_new_documents()
+        if result['documents_processed'] > 0:
+            logger.info(f"✅ Auto-processed {result['documents_processed']} document(s) on startup")
+        else:
+            logger.info("No new documents to process")
+    except Exception as e:
+        logger.error(f"Error during auto-processing: {e}")
     
     # Initialize components (lazy loading will happen on first use)
     logger.info("Application started successfully")

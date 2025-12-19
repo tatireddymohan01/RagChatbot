@@ -7,7 +7,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.schemas.ingest_schema import URLIngestRequest, IngestResponse
 from app.services.document_loader import get_document_loader
 from app.services.web_scraper import get_web_scraper
+from app.services.document_monitor import get_document_monitor
 from app.core.vectorstore import get_vectorstore_manager
+from app.core.config import get_settings
 from app.utils.logger import get_logger
 
 router = APIRouter()
@@ -91,6 +93,64 @@ async def ingest_documents(files: List[UploadFile] = File(...)):
         raise HTTPException(
             status_code=500,
             detail=f"Error processing documents: {str(e)}"
+        )
+
+
+@router.post("/ingest/folder", response_model=IngestResponse)
+async def ingest_from_folder():
+    """
+    Process only new or modified documents from the configured documents folder
+    (Automatically tracks which files have been processed)
+    
+    Returns:
+        IngestResponse with processing status and statistics
+    """
+    try:
+        settings = get_settings()
+        logger.info(f"Checking for new/modified documents in: {settings.documents_folder}")
+        
+        # Use document monitor for intelligent processing
+        monitor = get_document_monitor()
+        result = monitor.process_new_documents()
+        
+        response = IngestResponse(
+            status=result['status'],
+            message=result['message'],
+            documents_processed=result['documents_processed'],
+            chunks_created=result['chunks_created'],
+            sources=result['files']
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error processing documents from folder: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing documents from folder: {str(e)}"
+        )
+
+
+@router.post("/ingest/folder/reset")
+async def reset_folder_tracking():
+    """
+    Reset document tracking (forces reprocessing of all documents on next ingest)
+    """
+    try:
+        monitor = get_document_monitor()
+        monitor.reset_tracking()
+        
+        logger.info("Document tracking reset")
+        return {
+            "status": "success",
+            "message": "Document tracking reset. All files will be reprocessed on next ingest."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error resetting tracking: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error resetting tracking: {str(e)}"
         )
 
 

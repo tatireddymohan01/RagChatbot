@@ -2,11 +2,11 @@
 RAG Chain Service
 Implements the conversational retrieval chain for question answering
 """
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Tuple, Optional
 from langchain_classic.chains import ConversationalRetrievalChain
 from langchain_classic.memory import ConversationBufferMemory
 from langchain_core.messages import HumanMessage, AIMessage
-from app.core.llm import get_llm, get_system_prompt
+from app.core.llm import get_llm
 from app.core.vectorstore import get_vectorstore_manager
 from app.core.config import get_settings
 from app.schemas.chat_schema import ChatMessage, SourceDocument
@@ -23,20 +23,6 @@ class RAGChainService:
         self.vectorstore_manager = get_vectorstore_manager()
         self.sessions: Dict[str, ConversationBufferMemory] = {}
         self.settings = get_settings()
-        
-        # Get system prompt based on configuration
-        system_prompt = get_system_prompt(self.settings.allow_general_knowledge)
-        
-        # Custom prompt template for RAG with fallback
-        self.system_template = f"""{system_prompt}
-
-Context from retrieved documents:
-{{context}}
-
-If the context above contains relevant information, use it to answer the question.
-If the context is insufficient or irrelevant, use your general knowledge to provide a helpful answer."""
-        
-        self.human_template = "{question}"
     
     def _get_or_create_memory(self, session_id: str) -> ConversationBufferMemory:
         """Get or create conversation memory for a session"""
@@ -105,13 +91,54 @@ If the context is insufficient or irrelevant, use your general knowledge to prov
             
             logger.info(f"Processing query: {question[:100]}...")
             
-            # Create conversational chain
+            # Create custom prompt for better answer extraction
+            from langchain_core.prompts import PromptTemplate
+            
+            # Check if general knowledge is allowed
+            if self.settings.allow_general_knowledge:
+                prompt_template = """Use the following pieces of context to answer the question at the end. 
+
+Read the context carefully and extract specific information requested in the question.
+If the answer is in the context, provide it directly and concisely in English.
+If you cannot find the answer in the context, use your general knowledge to provide a helpful answer.
+
+IMPORTANT: Always respond in English language only.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer in English:"""
+            else:
+                prompt_template = """Use the following pieces of context to answer the question at the end. 
+
+Read the context carefully and extract specific information requested in the question.
+If the answer is in the context, provide it directly and concisely in English.
+If you cannot find the answer in the context, say "I don't know" - do not make up an answer.
+
+IMPORTANT: Always respond in English language only.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer in English:"""
+            
+            PROMPT = PromptTemplate(
+                template=prompt_template,
+                input_variables=["context", "question"]
+            )
+            
+            # Create conversational chain with custom prompt
             qa_chain = ConversationalRetrievalChain.from_llm(
                 llm=self.llm,
                 retriever=retriever,
                 return_source_documents=True,
                 verbose=False,
                 chain_type="stuff",  # "stuff" method passes all context at once
+                combine_docs_chain_kwargs={"prompt": PROMPT}
             )
             
             # Format chat history
@@ -119,14 +146,19 @@ If the context is insufficient or irrelevant, use your general knowledge to prov
             if chat_history:
                 formatted_history = self._format_chat_history(chat_history)
             
-            # Query the chain
-            result = qa_chain({
+            # Query the chain using invoke instead of __call__
+            result = qa_chain.invoke({
                 "question": question,
                 "chat_history": formatted_history
             })
             
             answer = result.get("answer", "I couldn't generate an answer.")
             source_docs = result.get("source_documents", [])
+            
+            # Log retrieved documents for monitoring
+            logger.info(f"Retrieved {len(source_docs)} documents from vector store")
+            for i, doc in enumerate(source_docs[:2], 1):
+                logger.info(f"Doc {i} preview: {doc.page_content[:100]}...")
             
             # Format source documents
             sources = []

@@ -91,6 +91,50 @@ class DocumentLoaderService:
         logger.info(f"Loaded total of {len(all_documents)} documents from {len(file_paths)} files")
         return all_documents
     
+    def load_from_folder(self, folder_path: str) -> List[Document]:
+        """
+        Load all supported documents from a folder
+        
+        Args:
+            folder_path: Path to the folder containing documents
+            
+        Returns:
+            List of all loaded and chunked Document objects
+        """
+        folder = Path(folder_path)
+        
+        if not folder.exists():
+            logger.warning(f"Documents folder does not exist: {folder_path}")
+            folder.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Created documents folder: {folder_path}")
+            return []
+        
+        # Supported file extensions
+        supported_extensions = [".pdf", ".txt", ".docx", ".doc"]
+        
+        # Find all supported files
+        file_paths = []
+        for ext in supported_extensions:
+            file_paths.extend(folder.glob(f"*{ext}"))
+        
+        if not file_paths:
+            logger.info(f"No documents found in folder: {folder_path}")
+            return []
+        
+        logger.info(f"Found {len(file_paths)} document(s) in {folder_path}")
+        
+        # Load all documents
+        all_documents = []
+        for file_path in file_paths:
+            try:
+                documents = self.load_file(str(file_path))
+                all_documents.extend(documents)
+                logger.info(f"Loaded: {file_path.name}")
+            except Exception as e:
+                logger.error(f"Failed to load {file_path.name}: {e}")
+        
+        return all_documents
+    
     def chunk_documents(self, documents: List[Document]) -> List[Document]:
         """
         Split documents into smaller chunks

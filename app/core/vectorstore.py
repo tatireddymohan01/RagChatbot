@@ -172,6 +172,10 @@ class VectorStoreManager:
         except Exception as e:
             logger.error(f"Error clearing FAISS index: {e}")
             raise
+    
+    def reset(self):
+        """Reset the vector store (alias for clear_index)"""
+        self.clear_index()
 
 
 # Global vector store instance

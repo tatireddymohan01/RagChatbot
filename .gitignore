@@ -65,6 +65,9 @@ app/data/faiss_index/
 *.faiss
 *.pkl
 
+# Document tracking
+documents/.processed_files.json
+
 # Temporary files
 *.tmp
 *.bak

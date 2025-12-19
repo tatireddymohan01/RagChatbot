@@ -59,6 +59,10 @@ class Settings(BaseSettings):
         default="app/data/faiss_index",
         description="Path to FAISS index storage"
     )
+    documents_folder: str = Field(
+        default="documents",
+        description="Folder path for documents to be processed"
+    )
     chunk_size: int = Field(default=1000, description="Text chunk size")
     chunk_overlap: int = Field(default=200, description="Text chunk overlap")
     
