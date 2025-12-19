@@ -40,8 +40,14 @@ jobs:
           exit 1
         fi
     
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v2
+    - name: Create ZIP without node_modules and python packages
+      run: |
+        zip -r deploy.zip . -x "*.git*" "*.github*" "*.venv*" "*venv*" "*__pycache__*" "*.pyc" ".env" "logs/*" "node_modules/*"
+        ls -lh deploy.zip
+    
+    - name: Deploy to Azure Web App with Oryx Build
+      uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: deploy.zip
