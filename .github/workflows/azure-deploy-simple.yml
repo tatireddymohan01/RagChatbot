@@ -1,10 +1,10 @@
 name: Deploy to Azure Web App
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # Keep manual trigger option
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:  # Manual trigger only to avoid 409 conflicts
 
 env:
   AZURE_WEBAPP_NAME: ragchatbot-app
