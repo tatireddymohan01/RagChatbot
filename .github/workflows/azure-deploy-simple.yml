@@ -23,28 +23,14 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
     
-    - name: Create virtual environment and install dependencies
-      run: |
-        python -m venv venv
-        source venv/bin/activate
-        pip install --upgrade pip
-        pip install -r requirements.txt
-    
     - name: Verify required files exist
       run: |
         echo "Checking required files and directories..."
+        ls -la
         if [ -d "app" ]; then
           echo "✓ app/ directory found"
-          ls -lh app/
         else
           echo "✗ app/ directory NOT found"
-          exit 1
-        fi
-        if [ -d "documents" ]; then
-          echo "✓ documents/ directory found"
-          ls -lh documents/
-        else
-          echo "✗ documents/ directory NOT found"
           exit 1
         fi
         if [ -f "requirements.txt" ]; then
@@ -54,30 +40,9 @@ jobs:
           exit 1
         fi
     
-    - name: Upload artifact for deployment
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-app
-        path: |
-          .
-          !venv/
-          !.git/
-          !.github/
-          !.vscode/
-          !__pycache__/
-          !*.pyc
-          !.env
-          !.venv/
-          !logs/
-    
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: python-app
-        path: .
-    
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: .
