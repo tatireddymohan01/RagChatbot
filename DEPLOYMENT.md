@@ -1,15 +1,115 @@
 # 🚀 Deployment Guide
 
-Complete guide for deploying the RAG Chatbot to various platforms.
+Complete guide for deploying the RAG Chatbot to Azure using GitHub Actions.
 
 ## Table of Contents
-- [Docker Deployment](#docker-deployment)
-- [Azure App Service](#azure-app-service)
+- [GitHub Actions Deployment (Recommended)](#github-actions-deployment-recommended)
 - [Local Development](#local-development)
+- [Docker Deployment (Optional)](#docker-deployment-optional)
 
 ---
 
-## 🐳 Docker Deployment
+## 🚀 GitHub Actions Deployment (Recommended)
+
+Automated deployment to Azure App Service using GitHub Actions.
+
+### Prerequisites
+- Azure account with active subscription
+- GitHub repository
+- Azure Web App created (Free F1 tier or higher)
+
+### Step 1: Create Azure Resources Manually
+
+1. **Login to Azure Portal:** https://portal.azure.com
+
+2. **Create Resource Group:**
+   - Search "Resource groups" → Create
+   - Name: `rg-ragchatbot`
+   - Region: `East US`
+
+3. **Create App Service Plan:**
+   - Search "App Service plans" → Create
+   - Name: `plan-ragchatbot`
+   - OS: **Linux**
+   - Pricing: **F1 (Free)**
+
+4. **Create Web App:**
+   - Search "App Services" → Create → Web App
+   - Name: `ragchatbot-app` (or your unique name)
+   - Runtime: **Python 3.11**
+   - OS: **Linux**
+   - Plan: Select the plan you created
+
+5. **Configure Environment Variables:**
+   - In Web App → Settings → Environment variables
+   - Add these variables:
+     - `OPENAI_API_KEY` - Your OpenAI API key
+     - `MODEL_NAME` - gpt-4o-mini
+     - `EMBEDDING_MODEL` - text-embedding-3-small
+     - `TEMPERATURE` - 0.7
+     - `PORT` - 8000
+     - `HOST` - 0.0.0.0
+     - `DEBUG` - false
+     - `ALLOW_GENERAL_KNOWLEDGE` - true
+     - `SCM_DO_BUILD_DURING_DEPLOYMENT` - true
+
+6. **Configure Startup Command:**
+   - In Web App → Settings → Configuration → General settings
+   - Startup Command: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
+   - Click Save
+
+### Step 2: Setup GitHub Actions
+
+1. **Get Publish Profile from Azure:**
+   - In your Web App overview, click **"Get publish profile"**
+   - Save the downloaded `.PublishSettings` file
+   - Open it and copy all the XML content
+
+2. **Add Secret to GitHub:**
+   - Go to your GitHub repository
+   - Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `AZURE_WEBAPP_PUBLISH_PROFILE`
+   - Value: Paste the XML content
+   - Click "Add secret"
+
+3. **Update Workflow (if needed):**
+   - Edit `.github/workflows/azure-deploy-simple.yml`
+   - Change `AZURE_WEBAPP_NAME` to your Web App name:
+     ```yaml
+     env:
+       AZURE_WEBAPP_NAME: your-webapp-name  # Change this
+     ```
+
+### Step 3: Deploy
+
+**Option 1 - Push to main branch:**
+```bash
+git add .
+git commit -m "Deploy to Azure"
+git push origin main
+```
+
+**Option 2 - Manual trigger:**
+1. Go to GitHub → Actions
+2. Click "Deploy to Azure Web App"
+3. Click "Run workflow" → "Run workflow"
+
+### Step 4: Monitor Deployment
+
+- Watch progress in GitHub Actions tab
+- Check logs in Azure Portal → Log stream
+- Access your app at: `https://your-app.azurewebsites.net`
+
+### Testing Endpoints
+
+- **Main App:** `https://your-app.azurewebsites.net/`
+- **Health Check:** `https://your-app.azurewebsites.net/health`
+- **API Docs:** `https://your-app.azurewebsites.net/docs`
+
+---
+
+## 🐳 Docker Deployment (Optional)
 
 ### Quick Start with Docker Compose
 
@@ -38,67 +138,7 @@ docker run -d \
   ragchatbot:latest
 ```
 
-### Docker Configuration
-
-The `docker-compose.yml` includes:
-- FastAPI backend on port 8000
-- Health checks
-- Volume mounts for data persistence
-- Environment variable configuration
-
 ---
-
-## ☁️ Azure App Service
-
-### Prerequisites
-- Azure account with active subscription
-- Azure CLI installed
-- GitHub repository
-- Docker installed for testing
-
-### 1. Create Azure Resources
-
-```bash
-# Login to Azure
-az login
-
-# Create resource group
-az group create --name rg-ragchatbot --location eastus
-
-# Create Azure Container Registry
-az acr create \
-  --resource-group rg-ragchatbot \
-  --name ragchatbotacr \
-  --sku Basic \
-  --admin-enabled true
-
-# Create App Service Plan (Linux)
-az appservice plan create \
-  --name plan-ragchatbot \
-  --resource-group rg-ragchatbot \
-  --is-linux \
-  --sku B1
-
-# Create Web App
-az webapp create \
-  --resource-group rg-ragchatbot \
-  --plan plan-ragchatbot \
-  --name ragchatbot-app \
-  --deployment-container-image-name ragchatbotacr.azurecr.io/ragchatbot:latest
-```
-
-### 2. Configure Environment Variables
-
-```bash
-az webapp config appsettings set \
-  --name ragchatbot-app \
-  --resource-group rg-ragchatbot \
-  --settings \
-    OPENAI_API_KEY="your-openai-api-key" \
-    MODEL_NAME="gpt-4o-mini" \
-    WEBSITES_PORT="8000" \
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE="true"
-```
 
 ### 3. GitHub Actions Setup
 
