@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 env:
   AZURE_WEBAPP_NAME: ragchatbot-app
@@ -21,6 +22,13 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Create virtual environment and install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
     
     - name: Verify required files
       run: |
@@ -40,26 +48,29 @@ jobs:
           echo "✗ requirements.txt NOT found"
           exit 1
         fi
+
+    - name: Upload artifact for deployment
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-app
+        path: |
+          .
+          !venv/
+          !.git/
+          !.github/
+          !.vscode/
+          !__pycache__/
+          !*.pyc
     
-    - name: Create deployment ZIP with all files
-      run: |
-        echo "Creating deployment package..."
-        zip -r deploy.zip . \
-          -x "*.git*" \
-          -x "*.venv/*" \
-          -x "*venv/*" \
-          -x "*__pycache__*" \
-          -x "*.pyc" \
-          -x ".env" \
-          -x "logs/*" \
-          -x ".deployment"
-        echo "ZIP contents:"
-        unzip -l deploy.zip | head -30
-        ls -lh deploy.zip
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: python-app
+        path: .
+  
     
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: deploy.zip
