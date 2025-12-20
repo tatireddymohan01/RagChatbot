@@ -1,5 +1,19 @@
 // API Base URL
-const API_BASE_URL = window.location.origin;
+// Prefer global config set by embed.js or host page, fallback to current origin
+let API_BASE_URL = (window.RagChatbotConfig && window.RagChatbotConfig.apiUrl) || window.location.origin;
+
+// Expose minimal API to allow runtime override from embed loader
+window.ChatbotWidget = window.ChatbotWidget || {
+    setApiUrl: function(url) {
+        if (typeof url === 'string' && url.length > 0) {
+            API_BASE_URL = url;
+            console.log('[ChatbotWidget] API base set to:', API_BASE_URL);
+        }
+    },
+    getApiUrl: function() {
+        return API_BASE_URL;
+    }
+};
 
 // Session ID for conversation continuity
 let sessionId = `user-${Date.now()}`;
@@ -21,8 +35,10 @@ let docCount, chatCount;
 let documentsIngested = 0;
 let messagesSent = 0;
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize function
+function initializeWidget() {
+    console.log('[ChatbotWidget] Initializing...');
+    
     // Initialize all DOM elements
     chatBubble = document.getElementById('chatBubble');
     chatWidget = document.getElementById('chatWidget');
@@ -36,6 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
     docCount = document.getElementById('docCount');
     chatCount = document.getElementById('chatCount');
     
+    if (!chatBubble || !chatWidget) {
+        console.warn('[ChatbotWidget] Elements not found, retrying...');
+        return false;
+    }
+    
     // Now setup everything
     setupEventListeners();
     setupWidgetListeners();
@@ -48,7 +69,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedState === 'open') {
         openWidget();
     }
-});
+    
+    console.log('[ChatbotWidget] Initialized successfully');
+    return true;
+}
+
+// Initialize when DOM is ready or immediately if already loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeWidget);
+} else {
+    // DOM already loaded (script loaded dynamically), try to initialize
+    setTimeout(initializeWidget, 100);
+}
+
+// Expose initialize function for embed loader
+window.ChatbotWidget = window.ChatbotWidget || {};
+window.ChatbotWidget.init = initializeWidget;
+window.ChatbotWidget.setApiUrl = function(url) {
+    if (typeof url === 'string' && url.length > 0) {
+        API_BASE_URL = url;
+        console.log('[ChatbotWidget] API base set to:', API_BASE_URL);
+    }
+};
+window.ChatbotWidget.getApiUrl = function() {
+    return API_BASE_URL;
+};
 
 // Widget Functions
 function setupWidgetListeners() {

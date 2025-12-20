@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Optional
 from app.api import chat, ingest, health
 from app.core.config import get_settings

@@ -2,6 +2,26 @@
    FLOATING CHATBOT WIDGET STYLES
    =================================== */
 
+/* Default CSS Variables */
+:root {
+    /* Brand colors - Google Blue */
+    --primary-color: #4285f4;
+    --primary-light: #669df6;
+    --primary-dark: #1a73e8;
+
+    /* UI palette - Clean Professional */
+    --bg-color: #ffffff;
+    --text-color: #202124;
+    --text-secondary: #5f6368;
+    --border-color: rgba(232, 234, 237, 0.8);
+    --sidebar-bg: rgba(255, 255, 255, 0.98);
+
+    /* Effects */
+    --transition: all 0.2s ease;
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+                 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
 /* Demo Website Styles */
 .demo-website {
     min-height: 100vh;
@@ -142,6 +162,9 @@
     right: 20px;
     width: 380px;
     height: 550px;
+    min-width: 320px;
+    min-height: 400px;
+    max-width: 600px;
     max-height: calc(100vh - 120px);
     background: var(--sidebar-bg);
     border-radius: 16px;
@@ -150,8 +173,9 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--border-color);
+    border: 2px solid #dadce0;
     animation: slideInUp 0.3s ease-out;
+    resize: both;
 }
 
 @keyframes slideInUp {
@@ -163,6 +187,11 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Hide minimize button */
+#minimizeWidget {
+    display: none;
 }
 
 .chat-widget.minimized {
@@ -242,7 +271,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
     border-bottom: 1px solid var(--border-color);
     position: relative;
     overflow: hidden;
@@ -255,7 +284,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(120deg, transparent 0%, rgba(6, 182, 212, 0.05) 50%, transparent 100%);
+    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
 }
 
 .widget-header-content {
@@ -285,10 +314,11 @@
 }
 
 .widget-title h3 {
-    font-size: 1em;
+    font-size: 1.05em;
     margin: 0;
-    color: var(--text-color);
-    font-weight: 600;
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 .widget-header {
@@ -334,19 +364,21 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    border: none;
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.18);
+    color: #0f172a;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: var(--transition);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
 .widget-btn:hover {
-    background: rgba(6, 182, 212, 0.1);
-    color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.32);
+    color: #0f172a;
+    transform: translateY(-1px) scale(1.05);
 }
 
 .widget-btn svg {
@@ -480,23 +512,27 @@
 .widget-input-wrapper textarea {
     flex: 1;
     padding: 10px 12px;
-    border: 1.5px solid var(--border-color);
-    border-radius: 10px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
     font-size: 0.9em;
     outline: none;
     resize: none;
-    font-family: inherit;
-    line-height: 1.4;
-    min-height: 42px;
-    max-height: 100px;
-    background: var(--bg-color);
-    color: var(--text-color);
+    font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+    line-height: 1.5;
+    min-height: 40px;
+    max-height: 60px;
+    background: #ffffff;
+    color: #202124;
     transition: var(--transition);
 }
 
 .widget-input-wrapper textarea:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+    border-color: #4285f4;
+    box-shadow: 0 0 0 1px #4285f4;
+}
+
+.widget-input-wrapper textarea::placeholder {
+    color: #5f6368;
 }
 
 .widget-send-btn {
@@ -505,7 +541,7 @@
     border-radius: 8px;
     border: none;
     background: var(--primary-color);
-    color: #1e293b;
+    color: #ffffff;
     cursor: pointer;
     display: flex;
     align-items: center;

@@ -1,133 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RAG Assistant - AI-Powered Document Q&A</title>
-    <link rel="stylesheet" href="/static/widget.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --primary-color: #06b6d4; --primary-dark: #0891b2; --primary-light: #22d3ee;
-            --bg-color: #0f172a; --sidebar-bg: #1e293b; --text-color: #f1f5f9;
-            --text-secondary: #cbd5e1; --text-light: #94a3b8; --border-color: #334155;
-            --success-color: #10b981; --danger-color: #ef4444; --bot-msg-bg: #1e293b;
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        body {
-            font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
-            background: var(--bg-color); color: var(--text-color); line-height: 1.6;
-            -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-        }
-        .message { margin-bottom: 16px; animation: fadeInUp 0.3s ease; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .message-user { display: flex; flex-direction: row-reverse; gap: 8px; }
-        .message-bot { display: flex; gap: 8px; }
-        .message-avatar {
-            width: 28px; height: 28px; border-radius: 50%; display: flex;
-            align-items: center; justify-content: center; font-size: 0.9em; flex-shrink: 0;
-        }
-        .message-user .message-avatar { background: var(--primary-color); color: #1e293b; font-weight: 600; }
-        .message-bot .message-avatar { background: var(--primary-color); color: #1e293b; }
-        .message-content {
-            max-width: 70%; padding: 10px 12px; border-radius: 12px;
-            font-size: 0.9em; line-height: 1.5;
-        }
-        .message-user .message-content {
-            background: var(--primary-color); color: #1e293b;
-            border-bottom-right-radius: 4px; font-weight: 500;
-        }
-        .message-bot .message-content {
-            background: var(--bot-msg-bg); color: var(--text-color);
-            border-bottom-left-radius: 4px;
-        }
-        .typing-indicator { display: flex; gap: 8px; margin-bottom: 16px; }
-        .typing-indicator .message-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-color); color: #1e293b; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .typing-indicator .typing-dots {
-            background: var(--bot-msg-bg); padding: 12px 16px;
-            border-radius: 12px; border-bottom-left-radius: 4px; display: flex; gap: 4px;
-        }
-        .typing-indicator .dot {
-            width: 8px; height: 8px; background: var(--text-secondary);
-            border-radius: 50%; animation: typing 1.4s infinite;
-        }
-        .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes typing {
-            0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-            30% { opacity: 1; transform: translateY(-5px); }
-        }
-    </style>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>RAG Chatbot Widget</title>
+	<style>
+		:root {
+			--google-blue: #4285f4;
+			--google-blue-dark: #1a73e8;
+			--google-blue-light: #669df6;
+			--bg-white: #ffffff;
+			--text-primary: #202124;
+			--text-secondary: #5f6368;
+			--border-light: #e8eaed;
+			--hover-bg: #f1f3f4;
+		}
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		body {
+			font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+			background: var(--bg-white);
+			color: var(--text-primary);
+			line-height: 1.6;
+			padding: 48px 24px;
+			min-height: 100vh;
+		}
+		.page {
+			max-width: 960px;
+			margin: 0 auto;
+		}
+		header {
+			margin-bottom: 36px;
+			text-align: center;
+		}
+		h1 {
+			font-size: 2.5rem;
+			font-weight: 400;
+			margin-bottom: 12px;
+			color: var(--text-primary);
+			letter-spacing: -0.5px;
+		}
+		p.lead {
+			font-size: 1rem;
+			color: var(--text-secondary);
+			font-weight: 400;
+		}
+		.cards {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+			gap: 24px;
+			margin-top: 40px;
+		}
+		.card {
+			background: var(--bg-white);
+			border: 1px solid var(--border-light);
+			border-radius: 8px;
+			padding: 24px;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+			transition: box-shadow 0.3s, transform 0.3s;
+		}
+		.card:hover {
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+			transform: translateY(-2px);
+		}
+		.card h3 {
+			font-size: 1.125rem;
+			margin-bottom: 8px;
+			color: var(--google-blue);
+			font-weight: 500;
+		}
+		.card p {
+			color: var(--text-secondary);
+			font-size: 0.875rem;
+			line-height: 1.5;
+		}
+		footer {
+			margin-top: 48px;
+			color: var(--text-secondary);
+			font-size: 0.875rem;
+			text-align: center;
+		}
+	</style>
 </head>
 <body>
-    <div class="demo-website">
-        <div class="demo-header">
-            <img src="https://www.alchemindssolutions.com/assets/logo-D9uQrSAV.png" alt="Alcheminds Solutions" style="height: 40px;">
-            <nav>
-                <a href="https://www.alchemindssolutions.com/">Home</a>
-                <a href="https://www.alchemindssolutions.com/our-services">Services</a>
-                <a href="https://www.alchemindssolutions.com/our-products">Products</a>
-                <a href="https://www.alchemindssolutions.com/contact-alcheminds">Contact</a>
-            </nav>
-        </div>
-        <div class="demo-content">
-            <h1>We build digital products for your success</h1>
-            <p>Innovative Solutions for Business Growth</p>
-            <p style="margin-top: 20px; color: var(--text-secondary);">Empowering businesses with cutting-edge strategies, advanced technologies, and seamless solutions for unparalleled success.</p>
-            <div style="margin-top: 40px; display: flex; gap: 20px; flex-wrap: wrap;">
-                <div class="demo-card"><h3> AI/ML Development</h3><p>Empowering innovation with AI/ML solutions through advanced development and automation.</p></div>
-                <div class="demo-card"><h3> Cloud Migration</h3><p>Seamless transition to cloud environments for scalability and efficiency.</p></div>
-                <div class="demo-card"><h3> Software Development</h3><p>Transforming ideas into reality with innovative software solutions.</p></div>
-            </div>
-        </div>
-    </div>
-    <button id="chatBubble" class="chat-bubble" aria-label="Open chat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    </button>
-    <div id="chatWidget" class="chat-widget" style="display: none;">
-        <div class="resize-handle resize-top"></div>
-        <div class="resize-handle resize-right"></div>
-        <div class="resize-handle resize-bottom"></div>
-        <div class="resize-handle resize-left"></div>
-        <div class="resize-handle resize-top-left"></div>
-        <div class="resize-handle resize-top-right"></div>
-        <div class="resize-handle resize-bottom-left"></div>
-        <div class="resize-handle resize-bottom-right"></div>
-        <div class="widget-header">
-            <div class="widget-header-content">
-                <div class="widget-logo"><img src="https://www.alchemindssolutions.com/assets/logo-D9uQrSAV.png" alt="Alcheminds"></div>
-                <div class="widget-title"><h3>RAG Assistant</h3><p class="widget-subtitle"><span class="status-dot"></span>Online  Typically replies instantly</p></div>
-            </div>
-            <div class="widget-controls">
-                <button id="minimizeWidget" class="widget-btn" title="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                <button id="closeWidget" class="widget-btn" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-            </div>
-        </div>
+	<div class="page">
+		<header>
+			<h1>Welcome to RAG Assistant</h1>
+			<p class="lead">A simple, light demo page to host the floating chatbot widget.</p>
+		</header>
 
-        <div id="chatContent" class="widget-content active">
-            <div id="chatMessages" class="widget-messages">
-                <div class="welcome-message-compact">
-                    <div class="welcome-icon-compact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                    <h4>👋 Hello!</h4><p>How can I help you today?</p>
-                </div>
-            </div>
-            <div class="widget-input-area">
-                <div class="widget-input-wrapper">
-                    <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
-                    <button id="sendBtn" class="widget-send-btn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-                </div>
-            </div>
-        </div>
+		<section class="cards">
+			<div class="card">
+				<h3>Ask Anything</h3>
+				<p>Use the floating chat button to ask questions about your documents.</p>
+			</div>
+			<div class="card">
+				<h3>Fast Responses</h3>
+				<p>Powered by the RAG pipeline for accurate, source-backed answers.</p>
+			</div>
+			<div class="card">
+				<h3>Easy Embed</h3>
+				<p>Just one script tag loads the full experience on any page.</p>
+			</div>
+		</section>
 
-        <div class="widget-footer">
-            <div class="widget-stats"><span id="docCount">0</span> docs  <span id="chatCount">0</span> messages</div>
-            <a href="https://www.alchemindssolutions.com" target="_blank" class="widget-brand">Powered by Alcheminds</a>
-        </div>
-    </div>
-    <script src="/static/script_widget.js"></script>
+		<footer>
+			Floating widget loads below via the one-line embed.
+		</footer>
+	</div>
+
+	<!-- Chatbot embed configuration -->
+	<script>
+		window.RagChatbotConfig = {
+			apiUrl: window.location.origin,
+			position: 'bottom-right',
+			primaryColor: '#4285f4',
+			title: 'AI Assistant',
+			welcomeMessage: '👋 Hello! How can I help you today?'
+		};
+	</script>
+
+	<!-- One-line loader: injects widget HTML/CSS/JS -->
+	<script src="/static/embed.js"></script>
 </body>
 </html>
