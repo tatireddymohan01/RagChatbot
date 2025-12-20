@@ -7,21 +7,17 @@ let sessionId = `user-${Date.now()}`;
 // Chat history
 let chatHistory = [];
 
-// DOM Elements
-const chatMessages = document.getElementById('chatMessages');
-const messageInput = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendBtn');
-const clearBtn = document.getElementById('clearBtn');
-const fileInput = document.getElementById('fileInput');
-const uploadBtn = document.getElementById('uploadBtn');
-const uploadStatus = document.getElementById('uploadStatus');
-const urlInput = document.getElementById('urlInput');
-const ingestUrlBtn = document.getElementById('ingestUrlBtn');
-const urlStatus = document.getElementById('urlStatus');
-const systemStatus = document.getElementById('systemStatus');
-const fileLabel = document.getElementById('fileLabel');
-const docCount = document.getElementById('docCount');
-const chatCount = document.getElementById('chatCount');
+// Widget State
+let isWidgetOpen = false;
+let isWidgetMinimized = false;
+
+// DOM Elements - Declare but initialize after DOM loads
+let chatBubble, chatWidget, closeWidgetBtn, minimizeWidgetBtn;
+let chatTab, docsTab, chatContent, docsContent;
+let chatMessages, messageInput, sendBtn;
+let fileInput, uploadBtn, uploadStatus;
+let urlInput, ingestUrlBtn, urlStatus;
+let systemStatus, fileLabel, docCount, chatCount;
 
 // Counters
 let documentsIngested = 0;
@@ -29,10 +25,131 @@ let messagesSent = 0;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize all DOM elements
+    chatBubble = document.getElementById('chatBubble');
+    chatWidget = document.getElementById('chatWidget');
+    closeWidgetBtn = document.getElementById('closeWidget');
+    minimizeWidgetBtn = document.getElementById('minimizeWidget');
+    chatTab = document.getElementById('chatTab');
+    docsTab = document.getElementById('docsTab');
+    chatContent = document.getElementById('chatContent');
+    docsContent = document.getElementById('docsContent');
+    chatMessages = document.getElementById('chatMessages');
+    messageInput = document.getElementById('messageInput');
+    sendBtn = document.getElementById('sendBtn');
+    fileInput = document.getElementById('fileInput');
+    uploadBtn = document.getElementById('uploadBtn');
+    uploadStatus = document.getElementById('uploadStatus');
+    urlInput = document.getElementById('urlInput');
+    ingestUrlBtn = document.getElementById('ingestUrlBtn');
+    urlStatus = document.getElementById('urlStatus');
+    systemStatus = document.getElementById('systemStatus');
+    fileLabel = document.getElementById('fileLabel');
+    docCount = document.getElementById('docCount');
+    chatCount = document.getElementById('chatCount');
+    
+    // Now setup everything
     checkHealth();
     setupEventListeners();
+    setupWidgetListeners();
     autoResizeTextarea();
+    
+    // Initialize widget state from localStorage
+    const savedState = localStorage.getItem('widgetState');
+    if (savedState === 'open') {
+        openWidget();
+    }
 });
+
+// Widget Functions
+function setupWidgetListeners() {
+    console.log('Setting up widget listeners...');
+    console.log('chatBubble:', chatBubble);
+    console.log('chatWidget:', chatWidget);
+    
+    if (!chatBubble || !chatWidget) {
+        console.error('Widget elements not found!');
+        return;
+    }
+    
+    // Open widget when bubble is clicked
+    chatBubble.addEventListener('click', () => {
+        console.log('Bubble clicked!');
+        if (isWidgetOpen) {
+            if (isWidgetMinimized) {
+                maximizeWidget();
+            }
+        } else {
+            openWidget();
+        }
+    });
+    
+    // Close widget
+    if (closeWidgetBtn) {
+        closeWidgetBtn.addEventListener('click', closeWidget);
+    }
+    
+    // Minimize widget
+    if (minimizeWidgetBtn) {
+        minimizeWidgetBtn.addEventListener('click', minimizeWidget);
+    }
+    
+    // Tab switching
+    if (chatTab) {
+        chatTab.addEventListener('click', () => switchTab('chat'));
+    }
+    if (docsTab) {
+        docsTab.addEventListener('click', () => switchTab('docs'));
+    }
+}
+
+function openWidget() {
+    console.log('Opening widget...');
+    chatWidget.style.display = 'flex';
+    chatBubble.style.display = 'none';
+    isWidgetOpen = true;
+    isWidgetMinimized = false;
+    localStorage.setItem('widgetState', 'open');
+    
+    // Focus on message input
+    setTimeout(() => {
+        if (messageInput) {
+            messageInput.focus();
+        }
+    }, 300);
+}
+
+function closeWidget() {
+    chatWidget.style.display = 'none';
+    chatBubble.style.display = 'flex';
+    isWidgetOpen = false;
+    isWidgetMinimized = false;
+    localStorage.setItem('widgetState', 'closed');
+}
+
+function minimizeWidget() {
+    chatWidget.classList.add('minimized');
+    isWidgetMinimized = true;
+}
+
+function maximizeWidget() {
+    chatWidget.classList.remove('minimized');
+    isWidgetMinimized = false;
+}
+
+function switchTab(tab) {
+    if (tab === 'chat') {
+        chatTab.classList.add('active');
+        docsTab.classList.remove('active');
+        chatContent.classList.add('active');
+        docsContent.classList.remove('active');
+    } else {
+        docsTab.classList.add('active');
+        chatTab.classList.remove('active');
+        docsContent.classList.add('active');
+        chatContent.classList.remove('active');
+    }
+}
 
 // Setup Event Listeners
 function setupEventListeners() {
@@ -43,9 +160,12 @@ function setupEventListeners() {
             sendMessage();
         }
     });
-    messageInput.addEventListener('input', autoResizeTextarea);
+    messageInput.addEventListener('input', () => {
+        autoResizeTextarea();
+        // Enable/disable send button based on input
+        sendBtn.disabled = !messageInput.value.trim();
+    });
     
-    clearBtn.addEventListener('click', clearChat);
     uploadBtn.addEventListener('click', uploadDocuments);
     ingestUrlBtn.addEventListener('click', ingestUrl);
     
@@ -100,11 +220,11 @@ async function sendMessage() {
     // Display user message
     addMessage('user', query);
     messageInput.value = '';
+    sendBtn.disabled = true;
     autoResizeTextarea();
     
-    // Disable send button
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = '<span class="loading"></span>';
+    // Show typing indicator
+    showTypingIndicator();
     
     try {
         const response = await fetch(`${API_BASE_URL}/chat`, {
@@ -131,21 +251,17 @@ async function sendMessage() {
             { role: 'assistant', content: data.answer }
         );
         
+        // Remove typing indicator
+        removeTypingIndicator();
+        
         // Display bot response
         addMessage('bot', data.answer, data.sources);
         
     } catch (error) {
         console.error('Error:', error);
+        removeTypingIndicator();
         addMessage('bot', '❌ Sorry, I encountered an error. Please make sure the API is running and documents are ingested.', []);
         showToast('Failed to get response', 'error');
-    } finally {
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = `
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-        `;
     }
 }
 
@@ -207,6 +323,35 @@ function formatMessage(text) {
     return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
+// Show Typing Indicator
+function showTypingIndicator() {
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message message-bot typing-indicator';
+    typingDiv.id = 'typing-indicator';
+    
+    typingDiv.innerHTML = `
+        <div class="message-avatar">🤖</div>
+        <div class="message-wrapper">
+            <div class="message-label">AI Assistant</div>
+            <div class="message-content">
+                <span class="loading"></span>
+                <span style="margin-left: 8px; color: var(--text-secondary);">Thinking...</span>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Remove Typing Indicator
+function removeTypingIndicator() {
+    const typingIndicator = document.getElementById('typing-indicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
 // Clear Chat
 function clearChat() {
     if (!confirm('Are you sure you want to clear the conversation?')) return;
@@ -219,16 +364,16 @@ function clearChat() {
     chatMessages.innerHTML = `
         <div class="welcome-message">
             <div class="welcome-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
             </div>
-            <h2>Welcome to RAG Assistant</h2>
-            <p>Your intelligent document companion powered by AI</p>
+            <h2>How can I help you today?</h2>
+            <p>Upload documents and ask questions to get AI-powered answers</p>
             <div class="welcome-steps">
                 <div class="step">
                     <span class="step-number">1</span>
-                    <span>Upload documents or add a URL</span>
+                    <span>Upload your documents or add a URL</span>
                 </div>
                 <div class="step">
                     <span class="step-number">2</span>
@@ -236,7 +381,7 @@ function clearChat() {
                 </div>
                 <div class="step">
                     <span class="step-number">3</span>
-                    <span>Get AI-powered answers with sources</span>
+                    <span>Get instant answers with source references</span>
                 </div>
             </div>
         </div>
@@ -398,5 +543,38 @@ function showToast(message, type = 'info') {
     }, 4000);
 }
 
+// Show typing indicator
+function showTypingIndicator() {
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message message-bot typing-indicator';
+    typingDiv.id = 'typingIndicator';
+    
+    typingDiv.innerHTML = `
+        <div class="message-avatar">🤖</div>
+        <div class="message-wrapper">
+            <div class="message-label">AI Assistant</div>
+            <div class="message-content" style="display: flex; align-items: center; gap: 6px;">
+                <span class="loading"></span>
+                <span style="color: var(--text-secondary);">Thinking...</span>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Remove typing indicator
+function removeTypingIndicator() {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
 // Auto-refresh health status every 30 seconds
 setInterval(checkHealth, 30000);
+
+// Debug logging
+console.log('chatBubble:', chatBubble);
+console.log('chatWidget:', chatWidget);
