@@ -86,8 +86,8 @@ app.add_middleware(
 # Mount static files and templates only if not in API-only mode
 templates: Optional[Jinja2Templates] = None
 if not settings.api_only:
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
-    templates = Jinja2Templates(directory="app/templates")
+    app.mount("/static", StaticFiles(directory="ui/static"), name="static")
+    templates = Jinja2Templates(directory="ui/templates")
     logger.info("UI serving enabled")
 else:
     logger.info("Running in API-only mode (UI disabled)")

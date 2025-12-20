@@ -1,19 +1,38 @@
-# 📖 API & Integration Guide
+# 📖 API Guide - External Application Integration
 
-Complete reference for integrating the RAG Chatbot API with any frontend or application.
+Complete API reference for integrating the RAG Chatbot with external applications.
 
-## 🌐 API Endpoints
+## 🌐 Base URLs
 
-### Base URL
 ```
-http://localhost:8000  # Local development
-https://your-app.azurewebsites.net  # Production
+Local Development:  http://localhost:8000
+Production (Azure): https://your-app.azurewebsites.net
 ```
 
-### Health Check
-```http
-GET /health
-```
+## 🔑 Authentication
+
+Currently no authentication required. For production, consider adding:
+- API keys
+- JWT tokens
+- OAuth 2.0
+
+## 📚 Interactive Documentation
+
+Visit these URLs when the server is running:
+
+- **Swagger UI** (Interactive testing): `/docs`
+- **ReDoc** (Clean documentation): `/redoc`
+- **OpenAPI JSON**: `/openapi.json`
+
+---
+
+## API Endpoints
+
+### 1. Health Check
+
+Check if the API is running and get system information.
+
+**Endpoint:** `GET /health`
 
 **Response:**
 ```json
@@ -21,80 +40,130 @@ GET /health
   "status": "healthy",
   "service": "RAG Chatbot API",
   "version": "1.0.0",
-  "timestamp": "2025-12-19T10:30:00",
-  "model": "gpt-4o-mini"
+  "timestamp": "2025-12-20T10:30:00",
+  "model": "gpt-4o-mini",
+  "embedding_model": "text-embedding-3-small",
+  "documents_indexed": 42
 }
 ```
 
-### Chat
-```http
-POST /chat
-Content-Type: application/json
+**Examples:**
 
+```bash
+# curl
+curl http://localhost:8000/health
+
+# PowerShell
+Invoke-RestMethod -Uri "http://localhost:8000/health"
+
+# Python
+import requests
+response = requests.get("http://localhost:8000/health")
+print(response.json())
+```
+
+---
+
+### 2. Chat
+
+Send a message and receive an AI-generated response based on your documents.
+
+**Endpoint:** `POST /chat`
+
+**Request Body:**
+```json
 {
   "query": "What is machine learning?",
   "session_id": "user-123",
-  "chat_history": []
+  "chat_history": [
+    {"role": "user", "content": "Previous question"},
+    {"role": "assistant", "content": "Previous answer"}
+  ]
 }
 ```
+
+**Parameters:**
+- `query` (required, string): The user's question
+- `session_id` (optional, string): Unique identifier for conversation session
+- `chat_history` (optional, array): Previous conversation turns
 
 **Response:**
 ```json
 {
-  "answer": "Machine learning is...",
+  "answer": "Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed...",
   "sources": [
     {
-      "content": "Relevant document excerpt",
-      "metadata": {"source": "document.pdf", "page": 1}
+      "content": "Machine learning algorithms build models based on training data...",
+      "metadata": {
+        "source": "ml_guide.pdf",
+        "page": 5
+      }
     }
   ],
   "session_id": "user-123"
 }
 ```
 
-### Document Ingestion
+**Examples:**
 
-**Text:**
-```http
-POST /ingest/text
-Content-Type: application/json
+```bash
+# curl
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is AI?", "session_id": "user-123"}'
 
-{
-  "text": "Your text content here",
-  "metadata": {"source": "manual_input"}
-}
+# curl with chat history
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Tell me more about it",
+    "session_id": "user-123",
+    "chat_history": [
+      {"role": "user", "content": "What is AI?"},
+      {"role": "assistant", "content": "AI stands for Artificial Intelligence..."}
+    ]
+  }'
 ```
 
-**File Upload:**
-```http
-POST /ingest/file
-Content-Type: multipart/form-data
+```powershell
+# PowerShell
+$body = @{
+    query = "What is machine learning?"
+    session_id = "user-456"
+} | ConvertTo-Json
 
-file: <PDF/DOCX/TXT file>
+Invoke-RestMethod -Uri "http://localhost:8000/chat" `
+  -Method Post `
+  -Body $body `
+  -ContentType "application/json"
 ```
 
-**URL:**
-```http
-POST /ingest/url
-Content-Type: application/json
+```python
+# Python
+import requests
 
-{
-  "url": "https://example.com/article"
-}
+def send_message(query, session_id="user-123", chat_history=None):
+    url = "http://localhost:8000/chat"
+    payload = {
+        "query": query,
+        "session_id": session_id
+    }
+    if chat_history:
+        payload["chat_history"] = chat_history
+    
+    response = requests.post(url, json=payload)
+    return response.json()
+
+# Usage
+result = send_message("What is deep learning?")
+print(f"Answer: {result['answer']}")
+print(f"Sources: {len(result['sources'])} documents")
 ```
-
----
-
-## 💻 Integration Examples
-
-### JavaScript/React
 
 ```javascript
-const API_URL = 'http://localhost:8000';
-
-// Chat function
-async function sendMessage(query, sessionId) {
-  const response = await fetch(`${API_URL}/chat`, {
+// JavaScript/Node.js
+async function sendMessage(query, sessionId = 'user-123') {
+  const response = await fetch('http://localhost:8000/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -109,309 +178,650 @@ async function sendMessage(query, sessionId) {
 }
 
 // Usage
-const result = await sendMessage('What is AI?', 'user-123');
-console.log(result.answer);
+sendMessage("What is neural network?")
+  .then(data => console.log(data.answer));
 ```
 
-### Python
+---
+
+### 3. Upload Document (File)
+
+Upload PDF, DOCX, or TXT files for processing.
+
+**Endpoint:** `POST /ingest/file`
+
+**Content-Type:** `multipart/form-data`
+
+**Parameters:**
+- `file` (required): The file to upload
+
+**Response:**
+```json
+{
+  "message": "Document processed successfully",
+  "filename": "research_paper.pdf",
+  "chunks_created": 47,
+  "status": "success"
+}
+```
+
+**Examples:**
+
+```bash
+# curl - single file
+curl -X POST http://localhost:8000/ingest/file \
+  -F "file=@document.pdf"
+
+# curl - from specific path
+curl -X POST http://localhost:8000/ingest/file \
+  -F "file=@C:/Users/Documents/paper.pdf"
+```
+
+```powershell
+# PowerShell
+$filePath = "C:\Documents\research.pdf"
+$form = @{
+    file = Get-Item -Path $filePath
+}
+
+Invoke-RestMethod -Uri "http://localhost:8000/ingest/file" `
+  -Method Post `
+  -Form $form
+```
 
 ```python
+# Python
 import requests
 
-API_URL = 'http://localhost:8000'
+def upload_file(file_path):
+    url = "http://localhost:8000/ingest/file"
+    with open(file_path, 'rb') as f:
+        files = {'file': f}
+        response = requests.post(url, files=files)
+    return response.json()
 
-def send_message(query: str, session_id: str = None):
+# Usage
+result = upload_file("document.pdf")
+print(f"Processed: {result['filename']}")
+print(f"Chunks created: {result['chunks_created']}")
+```
+
+```javascript
+// JavaScript (Browser)
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch('http://localhost:8000/ingest/file', {
+    method: 'POST',
+    body: formData
+  });
+  
+  return await response.json();
+}
+
+// Usage with file input
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const result = await uploadFile(file);
+  console.log(`Uploaded: ${result.filename}`);
+});
+```
+
+```javascript
+// Node.js with FormData
+const FormData = require('form-data');
+const fs = require('fs');
+
+async function uploadFile(filePath) {
+  const form = new FormData();
+  form.append('file', fs.createReadStream(filePath));
+  
+  const response = await fetch('http://localhost:8000/ingest/file', {
+    method: 'POST',
+    body: form,
+    headers: form.getHeaders()
+  });
+  
+  return await response.json();
+}
+```
+
+---
+
+### 4. Ingest from URL
+
+Scrape and process content from a website.
+
+**Endpoint:** `POST /ingest/url`
+
+**Request Body:**
+```json
+{
+  "url": "https://en.wikipedia.org/wiki/Artificial_intelligence"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "URL content processed successfully",
+  "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+  "chunks_created": 89,
+  "status": "success"
+}
+```
+
+**Examples:**
+
+```bash
+# curl
+curl -X POST http://localhost:8000/ingest/url \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/article"}'
+```
+
+```powershell
+# PowerShell
+$body = @{
+    url = "https://en.wikipedia.org/wiki/Machine_learning"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8000/ingest/url" `
+  -Method Post `
+  -Body $body `
+  -ContentType "application/json"
+```
+
+```python
+# Python
+def ingest_url(url):
+    import requests
     response = requests.post(
-        f'{API_URL}/chat',
-        json={
-            'query': query,
-            'session_id': session_id
-        }
+        "http://localhost:8000/ingest/url",
+        json={"url": url}
     )
     return response.json()
 
 # Usage
-result = send_message('What is AI?', 'user-123')
-print(result['answer'])
-```
-
-### cURL
-
-```bash
-# Chat
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What is machine learning?"}'
-
-# Ingest text
-curl -X POST http://localhost:8000/ingest/text \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Machine learning is a subset of AI..."}'
-
-# Upload file
-curl -X POST http://localhost:8000/ingest/file \
-  -F "file=@document.pdf"
-```
-
-### Node.js
-
-```javascript
-const axios = require('axios');
-
-const API_URL = 'http://localhost:8000';
-
-async function chat(query, sessionId) {
-  const response = await axios.post(`${API_URL}/chat`, {
-    query: query,
-    session_id: sessionId
-  });
-  
-  return response.data;
-}
-
-// Usage
-chat('What is AI?', 'user-123')
-  .then(result => console.log(result.answer))
-  .catch(error => console.error(error));
+result = ingest_url("https://docs.python.org/3/tutorial/")
+print(f"Processed {result['chunks_created']} chunks from {result['url']}")
 ```
 
 ---
 
-## 🎨 Frontend Integration Patterns
+### 5. Ingest Text Directly
 
-### React Example
+Add text content directly without uploading files.
 
-```jsx
-import { useState, useEffect } from 'react';
+**Endpoint:** `POST /ingest/text`
+
+**Request Body:**
+```json
+{
+  "text": "Your text content here. Can be multiple paragraphs...",
+  "metadata": {
+    "source": "manual_input",
+    "title": "Meeting Notes",
+    "date": "2025-12-20"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Text processed successfully",
+  "chunks_created": 3,
+  "status": "success"
+}
+```
+
+**Examples:**
+
+```bash
+# curl
+curl -X POST http://localhost:8000/ingest/text \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Machine learning is a method of data analysis...",
+    "metadata": {"source": "notes", "title": "ML Basics"}
+  }'
+```
+
+```python
+# Python
+def ingest_text(text, metadata=None):
+    import requests
+    payload = {"text": text}
+    if metadata:
+        payload["metadata"] = metadata
+    
+    response = requests.post(
+        "http://localhost:8000/ingest/text",
+        json=payload
+    )
+    return response.json()
+
+# Usage
+text = """
+Deep learning is a subset of machine learning.
+It uses neural networks with multiple layers.
+"""
+result = ingest_text(text, {"source": "lecture", "topic": "DL"})
+```
+
+---
+
+## 🔄 Session Management
+
+Sessions allow maintaining conversation context across multiple messages.
+
+### How Sessions Work
+
+1. **Each user gets a unique session_id**
+2. **Conversation history is stored per session**
+3. **Context is maintained across multiple queries**
+
+### Example: Multi-turn Conversation
+
+```python
+import requests
+
+API_URL = "http://localhost:8000/chat"
+session_id = "user-12345"
+
+def chat(query):
+    response = requests.post(API_URL, json={
+        "query": query,
+        "session_id": session_id
+    })
+    return response.json()
+
+# Conversation flow
+response1 = chat("What is machine learning?")
+print(response1["answer"])
+
+# Follow-up question (remembers context)
+response2 = chat("What are its applications?")
+print(response2["answer"])  # Knows "its" refers to machine learning
+
+# Another follow-up
+response3 = chat("Give me an example")
+print(response3["answer"])  # Still understands the context
+```
+
+### Session Management Best Practices
+
+1. **Generate unique session IDs per user**
+```python
+import uuid
+session_id = str(uuid.uuid4())
+```
+
+2. **Clear sessions after inactivity**
+```python
+# Sessions are automatically managed by the server
+# Old sessions are cleaned up based on memory limits
+```
+
+3. **Use different sessions for different conversations**
+```python
+support_session = "support-" + user_id
+sales_session = "sales-" + user_id
+```
+
+---
+
+## 🌍 Integration Examples
+
+### React Application
+
+```javascript
+// ChatService.js
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+export class ChatService {
+  constructor() {
+    this.sessionId = this.generateSessionId();
+  }
+  
+  generateSessionId() {
+    return `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  
+  async sendMessage(query) {
+    const response = await fetch(`${API_BASE_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: query,
+        session_id: this.sessionId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to send message');
+    }
+    
+    return await response.json();
+  }
+  
+  async uploadDocument(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/ingest/file`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    return await response.json();
+  }
+  
+  async checkHealth() {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    return await response.json();
+  }
+}
+
+// Usage in component
+import { ChatService } from './ChatService';
 
 function ChatComponent() {
-  const [message, setMessage] = useState('');
+  const [chatService] = useState(() => new ChatService());
   const [messages, setMessages] = useState([]);
-  const API_URL = 'http://localhost:8000';
-
-  const sendMessage = async () => {
-    if (!message.trim()) return;
-
-    // Add user message
-    setMessages(prev => [...prev, { 
-      role: 'user', 
-      content: message 
-    }]);
-
+  
+  const handleSendMessage = async (userMessage) => {
     try {
-      const response = await fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message })
-      });
-
-      const data = await response.json();
-      
-      // Add AI response
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: data.answer 
-      }]);
+      const response = await chatService.sendMessage(userMessage);
+      setMessages([...messages, 
+        { role: 'user', content: userMessage },
+        { role: 'assistant', content: response.answer }
+      ]);
     } catch (error) {
       console.error('Error:', error);
     }
-
-    setMessage('');
   };
-
+  
   return (
-    <div>
-      <div className="messages">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={msg.role}>
-            {msg.content}
-          </div>
-        ))}
-      </div>
-      <input 
-        value={message}
-        onChange={e => setMessage(e.target.value)}
-        onKeyPress={e => e.key === 'Enter' && sendMessage()}
-      />
-      <button onClick={sendMessage}>Send</button>
-    </div>
+    // Your chat UI here
   );
 }
 ```
 
-### Vue.js Example
+### Vue.js Application
 
-```vue
-<template>
-  <div>
-    <div v-for="msg in messages" :key="msg.id" :class="msg.role">
-      {{ msg.content }}
-    </div>
-    <input v-model="message" @keyup.enter="sendMessage" />
-    <button @click="sendMessage">Send</button>
-  </div>
-</template>
-
-<script>
+```javascript
+// chatApi.js
 export default {
-  data() {
-    return {
-      message: '',
-      messages: [],
-      apiUrl: 'http://localhost:8000'
-    };
+  baseURL: process.env.VUE_APP_API_URL || 'http://localhost:8000',
+  sessionId: `user-${Date.now()}`,
+  
+  async chat(query) {
+    const response = await fetch(`${this.baseURL}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: query,
+        session_id: this.sessionId
+      })
+    });
+    return await response.json();
   },
-  methods: {
-    async sendMessage() {
-      if (!this.message.trim()) return;
-
-      this.messages.push({ 
-        role: 'user', 
-        content: this.message 
-      });
-
-      try {
-        const response = await fetch(`${this.apiUrl}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: this.message })
-        });
-
-        const data = await response.json();
-        this.messages.push({ 
-          role: 'assistant', 
-          content: data.answer 
-        });
-      } catch (error) {
-        console.error('Error:', error);
-      }
-
-      this.message = '';
-    }
+  
+  async uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${this.baseURL}/ingest/file`, {
+      method: 'POST',
+      body: formData
+    });
+    return await response.json();
   }
 };
-</script>
+```
+
+### Python Flask/Django Backend
+
+```python
+# backend_service.py
+import requests
+from typing import List, Dict
+
+class RAGChatbotClient:
+    def __init__(self, base_url: str = "http://localhost:8000"):
+        self.base_url = base_url
+        self.session = requests.Session()
+    
+    def chat(self, query: str, session_id: str, 
+             chat_history: List[Dict] = None) -> Dict:
+        """Send a chat message"""
+        payload = {
+            "query": query,
+            "session_id": session_id
+        }
+        if chat_history:
+            payload["chat_history"] = chat_history
+        
+        response = self.session.post(
+            f"{self.base_url}/chat",
+            json=payload
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def upload_document(self, file_path: str) -> Dict:
+        """Upload a document for processing"""
+        with open(file_path, 'rb') as f:
+            files = {'file': f}
+            response = self.session.post(
+                f"{self.base_url}/ingest/file",
+                files=files
+            )
+        response.raise_for_status()
+        return response.json()
+    
+    def ingest_url(self, url: str) -> Dict:
+        """Ingest content from URL"""
+        response = self.session.post(
+            f"{self.base_url}/ingest/url",
+            json={"url": url}
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def health_check(self) -> Dict:
+        """Check API health"""
+        response = self.session.get(f"{self.base_url}/health")
+        response.raise_for_status()
+        return response.json()
+
+# Usage
+client = RAGChatbotClient("https://your-app.azurewebsites.net")
+
+# Send message
+result = client.chat("What is AI?", session_id="user-123")
+print(result["answer"])
+
+# Upload document
+upload_result = client.upload_document("document.pdf")
+print(f"Processed: {upload_result['chunks_created']} chunks")
+```
+
+### Mobile App (React Native)
+
+```javascript
+// ChatAPI.js
+const API_BASE_URL = 'https://your-app.azurewebsites.net';
+
+export const ChatAPI = {
+  async sendMessage(query, sessionId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          session_id: sessionId
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+  
+  async uploadDocument(uri, fileName) {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: uri,
+      type: 'application/pdf',
+      name: fileName
+    });
+    
+    const response = await fetch(`${API_BASE_URL}/ingest/file`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+    
+    return await response.json();
+  }
+};
 ```
 
 ---
 
-## ⚙️ Configuration
+## ⚠️ Error Handling
 
-### CORS Setup
+### HTTP Status Codes
 
-For production with external frontend:
+| Code | Meaning | Description |
+|------|---------|-------------|
+| 200 | OK | Request successful |
+| 400 | Bad Request | Invalid request parameters |
+| 422 | Unprocessable Entity | Validation error |
+| 500 | Internal Server Error | Server error |
+
+### Error Response Format
+
+```json
+{
+  "detail": "Error message describing what went wrong"
+}
+```
+
+### Example Error Handling
 
 ```python
-# In .env
+import requests
+
+def safe_chat(query, session_id):
+    try:
+        response = requests.post(
+            "http://localhost:8000/chat",
+            json={"query": query, "session_id": session_id},
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    except requests.exceptions.Timeout:
+        print("Request timed out")
+        return None
+    
+    except requests.exceptions.HTTPError as e:
+        print(f"HTTP Error: {e.response.status_code}")
+        print(f"Detail: {e.response.json().get('detail', 'Unknown error')}")
+        return None
+    
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return None
+```
+
+```javascript
+// JavaScript
+async function safeChat(query, sessionId) {
+  try {
+    const response = await fetch('http://localhost:8000/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, session_id: sessionId })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Request failed');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Chat error:', error.message);
+    return null;
+  }
+}
+```
+
+---
+
+## 🔐 CORS Configuration
+
+By default, CORS is enabled for all origins (`*`). For production, configure specific origins:
+
+```env
+# .env
 CORS_ORIGINS=["https://your-frontend.com", "https://app.example.com"]
 ```
 
-### API-Only Mode
+---
 
-To disable the built-in UI:
+## 💡 Best Practices
 
-```python
-# In .env
-API_ONLY=true
-```
+1. **Use Unique Session IDs**
+   - Generate per user: `user-${userId}-${timestamp}`
+   - Maintain across app session
+
+2. **Handle Timeouts**
+   - Set reasonable timeouts (30s for chat, 60s for uploads)
+   - Show loading indicators
+
+3. **Validate Inputs**
+   - Check file types before upload
+   - Validate URLs
+   - Limit message length
+
+4. **Error Recovery**
+   - Implement retry logic
+   - Show user-friendly error messages
+   - Log errors for debugging
+
+5. **Performance**
+   - Cache health check results
+   - Debounce rapid API calls
+   - Use connection pooling
 
 ---
 
-## 🔐 Authentication (Optional)
+## 📞 Support
 
-To add authentication, you can extend the API:
-
-```python
-from fastapi import Header, HTTPException
-
-async def verify_token(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token")
-    # Add your token verification logic
-    return True
-
-# Use in endpoints
-@router.post("/chat", dependencies=[Depends(verify_token)])
-async def chat(request: ChatRequest):
-    # Your chat logic
-```
+- Issues: GitHub Issues
+- Documentation: [README.md](README.md) | [PROJECT_GUIDE.md](PROJECT_GUIDE.md)
+- Interactive Testing: `/docs` endpoint
 
 ---
 
-## 📊 Rate Limiting
-
-Example using slowapi:
-
-```python
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
-limiter = Limiter(key_func=get_remote_address)
-
-@app.post("/chat")
-@limiter.limit("10/minute")
-async def chat(request: Request, chat_request: ChatRequest):
-    # Your chat logic
-```
-
----
-
-## 🧪 Testing
-
-```bash
-# Run tests
-pytest tests/
-
-# Test specific endpoint
-pytest tests/test_chat.py -v
-
-# With coverage
-pytest --cov=app tests/
-```
-
----
-
-## 📚 OpenAPI Documentation
-
-Access the interactive API documentation:
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
-
----
-
-## 🎯 Best Practices
-
-1. **Always use session_id** for conversation context
-2. **Handle errors gracefully** on the frontend
-3. **Show loading states** during API calls
-4. **Implement retry logic** for failed requests
-5. **Cache responses** when appropriate
-6. **Validate inputs** before sending to API
-7. **Use environment variables** for API URL
-8. **Implement proper error handling**
-
----
-
-## 🆘 Troubleshooting
-
-### CORS Errors
-- Check `CORS_ORIGINS` in `.env`
-- Ensure frontend URL is in allowed origins
-
-### 404 Not Found
-- Verify endpoint URL is correct
-- Check if API server is running
-- Ensure no typos in route paths
-
-### 500 Internal Server Error
-- Check API logs: `docker-compose logs -f`
-- Verify OpenAI API key is valid
-- Ensure documents are ingested
-
-### Slow Responses
-- Consider using streaming responses
-- Optimize document chunk size
-- Use faster embedding models
-- Enable caching
+**Happy Integrating! 🚀**

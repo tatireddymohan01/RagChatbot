@@ -1,617 +1,398 @@
-# 🤖 RAG Chatbot - Full Stack AI Application
+# 🤖 RAG Chatbot
 
-Production-grade chatbot using **FastAPI** + **LangChain** with **Retrieval Augmented Generation (RAG)**. Supports both monolithic and separated frontend/backend deployment.
+AI-powered chatbot using **FastAPI** + **LangChain** with **Retrieval Augmented Generation (RAG)**. Upload documents and ask questions - get intelligent answers based on your content.
 
-## 🌟 Features
+## ✨ What It Does
 
-### Core Features
-- ✅ **REST API** with FastAPI - Clean, well-documented API
-- ✅ **RAG Architecture** using LangChain - Context-aware responses
-- ✅ **Multi-format Document Support** (PDF, DOCX, TXT)
-- ✅ **Web Scraping** for URL content ingestion
-- ✅ **FAISS Vector Store** with persistence
-- ✅ **Conversational Memory** for multi-turn dialogues
-- ✅ **OpenAI GPT-4** integration with general knowledge fallback
-- ✅ **Production-ready** with logging, error handling, CORS
+- 💬 **Chat with your documents** - Ask questions and get accurate answers from uploaded files
+- 📄 **Multiple formats** - Supports PDF, DOCX, TXT files
+- 🌐 **Web scraping** - Learn from websites and URLs
+- 🧠 **Conversation memory** - Remembers context throughout the chat session
+- 🎨 **Clean web UI** - Professional chat interface included
+- ☁️ **Auto-deploy** - Push to GitHub → Automatically deploys to Azure
+- 🔌 **REST API** - Use from any application (React, Vue, Python, Node.js, etc.)
 
-### UI & UX
-- ✅ **Professional Web UI** - Modern, demo-ready interface
-- ✅ **Standalone Frontend** - Deploy independently from API
-- ✅ **Toast notifications** and visual feedback
-- ✅ **Responsive design** - Mobile, tablet, and desktop optimized
-- ✅ **Live statistics** - Document and message counters
+## 🎯 Key Features
 
-### Deployment & Integration
-- ✅ **Separated Architecture** - API-only mode for external frontends
-- ✅ **Docker containerization** - Multi-stage builds
-- ✅ **CI/CD with GitHub Actions** - Automated testing and deployment
-- ✅ **Azure App Service** deployment ready
-- ✅ **Flexible CORS** - Configure for any frontend domain
-- ✅ **Integration examples** - React, Vue, Angular, Python, Node.js
+- **Intelligent Answers** - Combines your documents with OpenAI GPT-4o-mini
+- **Source Citations** - Shows which documents were used to answer
+- **Persistent Storage** - FAISS vector database saves processed documents
+- **Session Management** - Multiple users with separate conversation histories
+- **Automatic Processing** - Monitors `documents/` folder for new files
+- **Production Ready** - Logging, error handling, health checks, CORS support
 
 ## 📁 Project Structure
 
 ```
 RagChatbot/
-├── app/
-│   ├── main.py                 # FastAPI application entry point
-│   ├── static/                 # Static files (CSS, JS)
-│   │   ├── style.css          # UI styles
-│   │   └── script.js          # Frontend JavaScript
-│   ├── templates/              # HTML templates
-│   │   └── index.html         # Chat UI
-│   ├── api/                    # API endpoints
-│   │   ├── chat.py            # Chat endpoint
-│   │   ├── ingest.py          # Document/URL ingestion endpoints
-│   │   └── health.py          # Health check endpoint
-│   ├── core/                   # Core modules
-│   │   ├── config.py          # Configuration management
-│   │   ├── llm.py             # LLM initialization
-│   │   ├── embeddings.py      # Embeddings management
-│   │   └── vectorstore.py     # FAISS vector store manager
-│   ├── services/               # Business logic services
-│   │   ├── rag_chain.py       # RAG chain implementation
-│   │   ├── document_loader.py # Document loading & chunking
-│   │   └── web_scraper.py     # Web scraping service
-│   ├── schemas/                # Pydantic models
-│   │   ├── chat_schema.py     # Chat request/response models
-│   │   └── ingest_schema.py   # Ingestion models
-│   ├── utils/                  # Utilities
-│   │   └── logger.py          # Logging configuration
-│   └── data/                   # Data storage
-│       └── faiss_index/       # FAISS vector store
-├── .github/workflows/          # CI/CD pipelines
-│   └── azure-deploy.yml       # Azure deployment workflow
-├── Dockerfile                  # Docker container configuration
-├── docker-compose.yml          # Docker Compose orchestration
-├── .dockerignore              # Docker build exclusions
-├── requirements.txt            # Python dependencies
-├── .env.example               # Environment variables template
-├── .gitignore                 # Git ignore rules
-├── README.md                  # This file
-├── AZURE_DEPLOYMENT.md        # Azure deployment guide
-└── DOCKER_DEPLOYMENT.md       # Docker & deployment guide
+├── app/                     # Backend API
+│   ├── main.py              # FastAPI application entry point
+│   ├── api/                 # API endpoints
+│   │   ├── chat.py          # Chat endpoint - handles queries
+│   │   ├── ingest.py        # Document upload endpoints
+│   │   └── health.py        # Health check endpoint
+│   ├── core/                # Core configuration
+│   │   ├── config.py        # Environment settings
+│   │   ├── llm.py           # OpenAI LLM initialization
+│   │   ├── embeddings.py    # Text embeddings setup
+│   │   └── vectorstore.py   # FAISS vector database manager
+│   ├── services/            # Business logic
+│   │   ├── rag_chain.py     # RAG pipeline implementation
+│   │   ├── document_loader.py # Document processing
+│   │   ├── document_monitor.py # Auto-process new files
+│   │   └── web_scraper.py   # URL content extraction
+│   ├── schemas/             # Data models (Pydantic)
+│   │   ├── chat_schema.py   # Chat request/response models
+│   │   └── ingest_schema.py # Ingestion models
+│   ├── utils/
+│   │   └── logger.py        # Logging configuration
+│   └── data/
+│       └── faiss_index/     # Vector database storage
+├── ui/                      # Frontend UI
+│   ├── static/
+│   │   ├── style.css        # UI styles
+│   │   └── script.js        # Frontend JavaScript
+│   └── templates/
+│       └── index.html       # Chat interface
+├── documents/               # Drop documents here for auto-processing
+├── logs/                    # Application logs
+├── .github/workflows/       # GitHub Actions CI/CD
+│   └── azure-deploy-simple.yml
+├── requirements.txt         # Python dependencies
+├── requirements-azure.txt   # Azure-specific requirements
+├── .env                     # Environment configuration
+├── .env.example            # Environment template
+├── start.ps1               # Local startup script (Windows)
+├── README.md               # This file
+├── API_GUIDE.md            # Complete API reference
+└── PROJECT_GUIDE.md        # Detailed technical explanation
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.9 or higher
-- OpenAI API key
-- pip or conda
+- **Python 3.11+** installed
+- **OpenAI API key** ([Get one here](https://platform.openai.com/api-keys))
+- **Git** (for deployment)
 
-### 1. Clone the Repository
-
-```bash
-cd d:\GitHubRepos\GenAI\RagChatbot
-```
-
-### 2. Create Virtual Environment
+### Installation
 
 ```bash
-# Using venv
-python -m venv venv
+# 1. Clone repository
+git clone <your-repo-url>
+cd RagChatbot
 
-# Activate on Windows
-venv\Scripts\activate
+# 2. Create virtual environment
+python -m venv .venv
 
-# Activate on Linux/Mac
-source venv/bin/activate
-```
+# 3. Activate virtual environment
+# Windows:
+.venv\Scripts\activate
+# Linux/Mac:
+source .venv/bin/activate
 
-### 3. Install Dependencies
-
-```bash
+# 4. Install dependencies
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
+### Configuration
 
-```bash
-# Copy the example environment file
-copy .env.example .env
+Create a `.env` file in the root directory:
 
-# Edit .env and add your OpenAI API key
-# OPENAI_API_KEY=sk-your-api-key-here
+```env
+# Required
+OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# Optional (defaults shown)
+MODEL_NAME=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
+TEMPERATURE=0.7
+
+# Vector Store
+FAISS_INDEX_PATH=app/data/faiss_index
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+RETRIEVAL_K=4
+
+# Server
+HOST=0.0.0.0
+PORT=8000
+DEBUG=false
+
+# Behavior
+ALLOW_GENERAL_KNOWLEDGE=true
+CORS_ORIGINS=["*"]
 ```
 
-**Required Environment Variables:**
-- `OPENAI_API_KEY`: Your OpenAI API key (required)
-- `MODEL_NAME`: OpenAI model to use (default: gpt-4o-mini)
-- `EMBEDDING_MODEL`: Embedding model (default: text-embedding-3-small)
-
-### 5. Run the Application
+### Run Locally
 
 ```bash
-# Run with uvicorn
-uvicorn app.main:app --reload
+# Option 1: Using uvicorn
+python -m uvicorn app.main:app --reload
 
-# Or run directly
+# Option 2: Using the startup script (Windows)
+.\start.ps1
+
+# Option 3: Direct Python
 python -m app.main
 ```
 
-The API will be available at: `http://localhost:8000`
+Access the application:
+- **Web Interface**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Alternative API Docs**: http://localhost:8000/redoc
 
-### 6. Access the Application
+## 📤 Adding Documents
 
-- **Web UI**: http://localhost:8000/ (Interactive chat interface)
-- **Swagger UI**: http://localhost:8000/docs (API documentation)
-- **ReDoc**: http://localhost:8000/redoc (Alternative API docs)
+### Method 1: Auto-Processing (Easiest)
+1. Drop files into the `documents/` folder
+2. Restart the application
+3. Files are automatically processed on startup
 
-## 🏗️ Deployment Modes
+### Method 2: Web UI
+1. Open http://localhost:8000
+2. Use the upload feature in the interface
 
-This application supports two deployment architectures:
-
-### 1. **Monolithic (Default)**
-Full-stack deployment with API and UI served from the same server.
-
-```env
-API_ONLY=false  # or omit this variable
+### Method 3: API
+```bash
+curl -X POST http://localhost:8000/ingest/file \
+  -F "file=@document.pdf"
 ```
 
-**Use when:**
-- Simple deployments
-- Quick demos
-- Small-scale applications
+## ☁️ Deploy to Azure
 
-### 2. **Separated (Microservices)**
-API and Frontend deployed independently for better scalability.
+### Quick Setup
 
-**Backend (API-only):**
-```env
-API_ONLY=true
-CORS_ORIGINS=["https://your-frontend.com"]
-```
+1. **Create Azure Resources** (via Portal or CLI):
+   - Resource Group: `rg-ragchatbot`
+   - App Service Plan: `plan-ragchatbot` (Linux, Python 3.11)
+   - Web App: `ragchatbot-app` (choose your unique name)
 
-**Frontend (Standalone):**
-```javascript
-// frontend/config.js
-API_BASE_URL: 'https://your-api-domain.com'
-```
+2. **Configure Azure Web App**:
+   - Go to Configuration → Application settings
+   - Add: `OPENAI_API_KEY` = your key
+   - Add: `MODEL_NAME` = gpt-4o-mini
+   - Add: `EMBEDDING_MODEL` = text-embedding-3-small
+   - Set Startup Command: 
+     ```
+     gunicorn --bind=0.0.0.0:8000 --timeout 600 --workers 4 app.main:app --worker-class uvicorn.workers.UvicornWorker
+     ```
 
-**Use when:**
-- Integrating with existing applications
-- Multiple frontend applications
-- Better scalability and independent updates
-- Mobile app backends
+3. **Setup GitHub Actions**:
+   - Download publish profile from Azure Web App
+   - Add to GitHub: Settings → Secrets → `AZURE_WEBAPP_PUBLISH_PROFILE`
+   - Update `.github/workflows/azure-deploy-simple.yml` with your app name
 
-**Learn more:**
-- [📖 API Documentation](./API_DOCUMENTATION.md) - Complete API reference
-- [🔧 Separated Architecture Guide](./SEPARATED_ARCHITECTURE.md) - Deployment options
-- [💡 Integration Examples](./INTEGRATION_EXAMPLES.md) - React, Vue, Python, etc.
+4. **Deploy**:
+   ```bash
+   git add .
+   git commit -m "Deploy to Azure"
+   git push origin main
+   ```
+
+### Azure Pricing
+
+| Tier | Cost | RAM | Storage | Use Case |
+|------|------|-----|---------|----------|
+| **F1 (Free)** | $0/month | 1 GB | 1 GB | Testing, demos, learning |
+| **B1 (Basic)** | ~$13/month | 1.75 GB | 10 GB | Small production, always-on |
+| **S1 (Standard)** | ~$70/month | 1.75 GB | 50 GB | High-traffic, auto-scaling |
+
+**Free Tier Limitations:**
+- Sleeps after 20 min inactivity
+- 60 CPU minutes/day
+- No custom domains
+
+**Recommended:** Start with Free, upgrade to B1 for production (always-on, no sleep).
+
+### OpenAI Costs
+
+- **GPT-4o-mini**: ~$0.50-$2.00 per 1,000 chat messages
+- **Pricing**: $0.15/1M input tokens, $0.60/1M output tokens
+- Monitor usage: https://platform.openai.com/usage
 
 ## 📚 API Endpoints
 
-### Health Check
+Full documentation with examples: [API_GUIDE.md](API_GUIDE.md)
+
+### Quick Reference
 
 ```bash
+# Health Check
 GET /health
-```
 
-Returns API status and configuration info.
-
-### Chat
-
-```bash
+# Chat
 POST /chat
-```
-
-**Request Body:**
-```json
 {
   "query": "What is machine learning?",
-  "session_id": "user-123",
-  "chat_history": [
-    {"role": "user", "content": "Hello"},
-    {"role": "assistant", "content": "Hi! How can I help?"}
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "answer": "Machine learning is...",
-  "sources": [
-    {
-      "content": "Machine learning is a method...",
-      "source": "ml_intro.pdf",
-      "page": 1
-    }
-  ],
   "session_id": "user-123"
 }
-```
 
-### Ingest Documents
+# Upload Document
+POST /ingest/file
+Content-Type: multipart/form-data
 
-```bash
-POST /ingest/docs
-```
-
-Upload PDF, DOCX, or TXT files.
-
-**Form Data:**
-- `files`: Multiple file uploads (multipart/form-data)
-
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Successfully ingested 3 document(s)",
-  "documents_processed": 3,
-  "chunks_created": 45,
-  "sources": ["doc1.pdf", "doc2.docx", "doc3.txt"]
-}
-```
-
-### Ingest URL
-
-```bash
+# Ingest URL
 POST /ingest/url
-```
-
-**Request Body:**
-```json
 {
-  "url": "https://en.wikipedia.org/wiki/Artificial_intelligence"
+  "url": "https://example.com/article"
 }
-```
 
-**Response:**
-```json
+# Add Text
+POST /ingest/text
 {
-  "status": "success",
-  "message": "Successfully ingested content from URL",
-  "documents_processed": 1,
-  "chunks_created": 23,
-  "sources": ["https://en.wikipedia.org/wiki/Artificial_intelligence"]
+  "text": "Your content here...",
+  "metadata": {"source": "manual"}
 }
 ```
 
-## 🧪 Testing with cURL
+Interactive API testing: http://localhost:8000/docs
 
-### Health Check
-
-```bash
-curl http://localhost:8000/health
-```
-
-### Ingest a Document
-
-```bash
-curl -X POST "http://localhost:8000/ingest/docs" \
-  -H "accept: application/json" \
-  -H "Content-Type: multipart/form-data" \
-  -F "files=@document.pdf"
-```
-
-### Ingest from URL
-
-```bash
-curl -X POST "http://localhost:8000/ingest/url" \
-  -H "Content-Type: application/json" \
-  -d "{\"url\":\"https://en.wikipedia.org/wiki/Machine_learning\"}"
-```
-
-### Chat Query
-
-```bash
-curl -X POST "http://localhost:8000/chat" \
-  -H "Content-Type: application/json" \
-  -d "{\"query\":\"What is machine learning?\",\"session_id\":\"user-123\"}"
-```
-
-### Chat with History
-
-```bash
-curl -X POST "http://localhost:8000/chat" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"query\": \"Tell me more about neural networks\",
-    \"session_id\": \"user-123\",
-    \"chat_history\": [
-      {\"role\": \"user\", \"content\": \"What is deep learning?\"},
-      {\"role\": \"assistant\", \"content\": \"Deep learning is a subset of machine learning...\"}
-    ]
-  }"
-```
-
-## 🧪 Testing with PowerShell
-
-### Health Check
-
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/health" -Method Get
-```
-
-### Ingest Document
-
-```powershell
-$filePath = "C:\path\to\document.pdf"
-$url = "http://localhost:8000/ingest/docs"
-
-$form = @{
-    files = Get-Item -Path $filePath
-}
-
-Invoke-RestMethod -Uri $url -Method Post -Form $form
-```
-
-### Ingest URL
-
-```powershell
-$body = @{
-    url = "https://en.wikipedia.org/wiki/Machine_learning"
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri "http://localhost:8000/ingest/url" `
-  -Method Post `
-  -Body $body `
-  -ContentType "application/json"
-```
-
-### Chat
-
-```powershell
-$body = @{
-    query = "What is machine learning?"
-    session_id = "user-123"
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri "http://localhost:8000/chat" `
-  -Method Post `
-  -Body $body `
-  -ContentType "application/json"
-```
-
-## ⚙️ Configuration
-
-All configuration is managed through environment variables in `.env` file:
+## 🔧 Configuration Options
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | OpenAI API key | **Required** |
-| `MODEL_NAME` | OpenAI model name | gpt-4o-mini |
-| `TEMPERATURE` | LLM temperature | 0.0 |
+| `MODEL_NAME` | LLM model | gpt-4o-mini |
 | `EMBEDDING_MODEL` | Embedding model | text-embedding-3-small |
-| `USE_HUGGINGFACE_EMBEDDINGS` | Use HuggingFace instead of OpenAI | false |
-| `CHUNK_SIZE` | Text chunk size | 1000 |
-| `CHUNK_OVERLAP` | Text chunk overlap | 200 |
-| `RETRIEVAL_K` | Number of docs to retrieve | 4 |
+| `TEMPERATURE` | LLM temperature (0-1) | 0.7 |
+| `CHUNK_SIZE` | Document chunk size | 1000 |
+| `CHUNK_OVERLAP` | Chunk overlap | 200 |
+| `RETRIEVAL_K` | Documents to retrieve | 4 |
+| `ALLOW_GENERAL_KNOWLEDGE` | Use GPT for general questions | true |
 | `HOST` | Server host | 0.0.0.0 |
 | `PORT` | Server port | 8000 |
 | `DEBUG` | Debug mode | false |
+| `CORS_ORIGINS` | Allowed origins | ["*"] |
+| `API_ONLY` | Disable UI | false |
 
-## 🏭 Production Deployment
+## 🛠️ Development
 
-### Azure Deployment
-
-The application is Azure-ready with:
-
-1. **Environment variable support** for all configuration
-2. **CORS middleware** for cross-origin requests
-3. **Health check endpoint** for load balancers
-4. **Logging** to files and console
-5. **Graceful startup/shutdown**
-
-#### Azure App Service Deployment
+### Project Setup for Development
 
 ```bash
-# Install Azure CLI
-# https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+# Install dev dependencies
+pip install -r requirements.txt
 
-# Login
-az login
+# Run with auto-reload
+uvicorn app.main:app --reload --log-level debug
 
-# Create resource group
-az group create --name RagChatbotRG --location eastus
-
-# Create App Service plan
-az appservice plan create --name RagChatbotPlan --resource-group RagChatbotRG --sku B1 --is-linux
-
-# Create web app
-az webapp create --resource-group RagChatbotRG --plan RagChatbotPlan --name rag-chatbot-api --runtime "PYTHON:3.11"
-
-# Configure environment variables
-az webapp config appsettings set --resource-group RagChatbotRG --name rag-chatbot-api --settings OPENAI_API_KEY="your-key"
-
-# Deploy code
-az webapp up --name rag-chatbot-api --resource-group RagChatbotRG
+# Check logs
+tail -f logs/rag_chatbot_*.log
 ```
 
-### Docker Deployment (Optional)
+### Code Structure
 
-Create `Dockerfile`:
+- **app/main.py** - Application entry, CORS, startup events
+- **app/api/** - FastAPI route handlers
+- **app/core/** - Singleton instances (LLM, embeddings, vectorstore)
+- **app/services/** - Business logic (RAG chain, document processing)
+- **app/schemas/** - Pydantic models for validation
+- **ui/** - Frontend HTML/CSS/JS (separate from API)
 
-```dockerfile
-FROM python:3.11-slim
+## 🔍 How It Works
 
-WORKDIR /app
+See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for detailed technical explanation.
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+**Quick Overview:**
 
-COPY app/ ./app/
+1. **Document Ingestion**
+   - Documents split into chunks (1000 chars)
+   - Converted to embeddings (vector representations)
+   - Stored in FAISS vector database
 
-EXPOSE 8000
+2. **Query Processing**
+   - User question converted to embedding
+   - Similar document chunks retrieved
+   - LLM generates answer using retrieved context
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-Build and run:
-
-```bash
-docker build -t rag-chatbot .
-docker run -p 8000:8000 --env-file .env rag-chatbot
-```
-
-## 🔒 Security Best Practices
-
-1. **Never commit `.env` file** - Keep API keys secret
-2. **Use environment variables** for all sensitive data
-3. **Enable CORS** only for trusted origins in production
-4. **Implement rate limiting** for production APIs
-5. **Use HTTPS** in production
-6. **Validate all inputs** (already implemented with Pydantic)
+3. **Conversation Memory**
+   - Session-based memory per user
+   - Context maintained across multiple turns
 
 ## 🐛 Troubleshooting
 
-### Issue: FAISS index not persisting
+### "No documents in vector store"
+**Solution:** Upload documents first via UI or API
 
-**Solution:** Ensure the `app/data/faiss_index` directory has write permissions.
-
-### Issue: "No documents in vector store"
-
-**Solution:** Ingest some documents first using `/ingest/docs` or `/ingest/url` endpoints.
-
-### Issue: OpenAI API errors
-
+### "OpenAI API error"
 **Solution:** 
-- Check your API key in `.env`
-- Verify you have API credits
-- Check OpenAI service status
+- Verify `OPENAI_API_KEY` in `.env`
+- Check credits: https://platform.openai.com/usage
+- Ensure API key has access to gpt-4o-mini
 
-### Issue: Module import errors
-
+### "Module not found"
 **Solution:**
 ```bash
 pip install --upgrade -r requirements.txt
 ```
 
-## � Docker & Deployment
-
-### Run with Docker
-
+### "Port 8000 already in use"
+**Solution:** Change `PORT` in `.env` or kill existing process:
 ```bash
-# Build image
-docker build -t ragchatbot:latest .
+# Windows
+netstat -ano | findstr :8000
+taskkill /PID <pid> /F
 
-# Run with Docker Compose
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
+# Linux/Mac
+lsof -ti:8000 | xargs kill
 ```
 
-Access at: http://localhost:8000
+### Azure: "Application Error"
+**Solution:**
+- Check Azure Log Stream for errors
+- Verify environment variables are set
+- Ensure startup command is correct
+- Restart the Web App
 
-### Deploy to Azure App Service
+### Document not processing
+**Solution:**
+- Check file format (PDF, DOCX, TXT)
+- Verify file is in `documents/` folder
+- Check logs: `logs/rag_chatbot_*.log`
+- Restart application to trigger auto-processing
 
-Complete deployment guide: [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
+## 📖 Additional Documentation
 
-**Quick Azure Setup:**
-```bash
-# Create resources
-az group create --name rg-ragchatbot --location eastus
-az acr create --resource-group rg-ragchatbot --name ragchatbotacr --sku Basic
-az appservice plan create --name plan-ragchatbot --resource-group rg-ragchatbot --is-linux --sku B1
-az webapp create --resource-group rg-ragchatbot --plan plan-ragchatbot --name ragchatbot-app \
-  --deployment-container-image-name ragchatbotacr.azurecr.io/ragchatbot:latest
+- **[API_GUIDE.md](API_GUIDE.md)** - Complete API reference with integration examples (JavaScript, Python, curl)
+- **[PROJECT_GUIDE.md](PROJECT_GUIDE.md)** - Deep dive into architecture, components, and how everything works
 
-# Configure
-az webapp config appsettings set --name ragchatbot-app --resource-group rg-ragchatbot \
-  --settings OPENAI_API_KEY="sk-xxx" WEBSITES_PORT="8000"
-```
+## 🔒 Security Best Practices
 
-### CI/CD Pipeline
-
-Automated deployment with GitHub Actions:
-- **Push to `main`**: Deploy to production
-- **Push to `develop`**: Deploy to staging  
-- **Pull requests**: Run tests
-
-Setup: Add secrets in GitHub → Settings → Secrets:
-- `AZURE_CREDENTIALS`
-- `AZURE_REGISTRY_LOGIN_SERVER`
-- `AZURE_REGISTRY_USERNAME`
-- `AZURE_REGISTRY_PASSWORD`
-- `OPENAI_API_KEY`
-
-See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for more deployment options (AWS, GCP, Kubernetes).
-
-## �📖 How It Works
-
-### RAG Pipeline
-
-1. **Document Ingestion**
-   - Load documents (PDF/DOCX/TXT/URL)
-   - Split into chunks (1000 chars with 200 overlap)
-   - Generate embeddings
-   - Store in FAISS vector database
-
-2. **Query Processing**
-   - User sends a question
-   - System retrieves top-k relevant chunks
-   - LLM generates answer using only retrieved context
-   - Returns answer with source citations
-
-3. **Conversational Memory**
-   - Maintains chat history per session
-   - Enables multi-turn conversations
-   - Context-aware responses
-
-### System Prompt
-
-The system enforces strict grounding:
-- Answer ONLY from retrieved context
-- Say "I don't know" if answer not in context
-- No external knowledge allowed
-- Cite sources when possible
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [API Documentation](./API_DOCUMENTATION.md) | Complete REST API reference with examples |
-| [Separated Architecture Guide](./SEPARATED_ARCHITECTURE.md) | Deploy frontend and backend independently |
-| [Integration Examples](./INTEGRATION_EXAMPLES.md) | Code examples for React, Vue, Python, Node.js, etc. |
-| [Azure Deployment](./AZURE_DEPLOYMENT.md) | Step-by-step Azure deployment guide |
-| [Docker Deployment](./DOCKER_DEPLOYMENT.md) | Docker, AWS, GCP, Kubernetes deployment |
-| [General Knowledge Guide](./GENERAL_KNOWLEDGE_GUIDE.md) | Configure AI fallback behavior |
-| [Frontend README](./frontend/README.md) | Standalone frontend deployment |
+1. **Never commit `.env` file** - Added to `.gitignore`
+2. **Use environment variables** - All secrets via env vars
+3. **Restrict CORS in production** - Set specific origins in `CORS_ORIGINS`
+4. **Keep dependencies updated** - Regularly update `requirements.txt`
+5. **Monitor API usage** - Track OpenAI costs
+6. **Use HTTPS in production** - Azure provides free SSL
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
-
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch: `git checkout -b feature-name`
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Commit: `git commit -m "Add feature"`
+5. Push: `git push origin feature-name`
+6. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License - Feel free to use for personal or commercial projects.
 
 ## 🙏 Acknowledgments
 
-- **LangChain** for the RAG framework
-- **FastAPI** for the web framework
-- **OpenAI** for LLM and embeddings
-- **FAISS** for vector storage
+- **LangChain** - RAG framework
+- **FastAPI** - Modern web framework
+- **OpenAI** - GPT-4 and embeddings
+- **FAISS** - Efficient vector search
 
 ## 📞 Support
 
-For issues and questions:
-- Open an issue on GitHub
-- Check the [API Guide](./API_GUIDE.md) for integration details
-- See [Deployment Guide](./DEPLOYMENT.md) for setup instructions
-- Check server logs in `logs/` directory
-
-## 🚀 Use Cases
-
-- **Customer Support** - Answer questions from documentation
-- **Knowledge Management** - Search and query internal documents
-- **Research Assistant** - Extract insights from research papers
-- **Educational Tools** - Interactive learning from textbooks
-- **Content Q&A** - Website chatbots for content-based queries
+- **Issues**: Open a GitHub issue
+- **Documentation**: Check API_GUIDE.md and PROJECT_GUIDE.md
+- **Logs**: Review `logs/` directory for errors
 
 ---
 
-**Built with ❤️ using FastAPI, LangChain, and OpenAI**
+**Built with ❤️ using FastAPI, LangChain, and OpenAI** 🚀

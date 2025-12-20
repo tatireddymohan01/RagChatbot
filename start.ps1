@@ -31,13 +31,22 @@ if ($useHF) {
     Write-Host "✅ Configuration loaded" -ForegroundColor Green
 }
 Write-Host ""
-Write-Host "📡 Server will start at: http://localhost:8000" -ForegroundColor Cyan
-Write-Host "📚 API Docs at: http://localhost:8000/docs" -ForegroundColor Cyan
-Write-Host "🌐 Web UI at: http://localhost:8000/" -ForegroundColor Cyan
+
+# Check if port 8000 is available, otherwise use 8001
+$port = 8000
+$portInUse = netstat -ano | Select-String ":$port " -Quiet
+if ($portInUse) {
+    Write-Host "⚠️  Port $port is in use, trying port 8001..." -ForegroundColor Yellow
+    $port = 8001
+}
+
+Write-Host "📡 Server will start at: http://localhost:$port" -ForegroundColor Cyan
+Write-Host "📚 API Docs at: http://localhost:$port/docs" -ForegroundColor Cyan
+Write-Host "🌐 Web UI at: http://localhost:$port/" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "💡 Tip: You can also run with Docker: docker-compose up -d" -ForegroundColor Gray
+Write-Host "⚠️  Keep this window open - closing it will stop the server!" -ForegroundColor Yellow
 Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
 Write-Host ""
 
-# Run the server
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Run the server with auto-reload for development
+python -m uvicorn app.main:app --host 127.0.0.1 --port $port --reload
