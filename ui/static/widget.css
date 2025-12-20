@@ -170,6 +170,72 @@
     overflow: hidden;
 }
 
+/* Resize Handles */
+.resize-handle {
+    position: absolute;
+    z-index: 10;
+}
+
+.resize-top, .resize-bottom {
+    left: 0;
+    right: 0;
+    height: 8px;
+    cursor: ns-resize;
+}
+
+.resize-top {
+    top: 0;
+}
+
+.resize-bottom {
+    bottom: 0;
+}
+
+.resize-left, .resize-right {
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+}
+
+.resize-left {
+    left: 0;
+}
+
+.resize-right {
+    right: 0;
+}
+
+.resize-top-left, .resize-top-right,
+.resize-bottom-left, .resize-bottom-right {
+    width: 16px;
+    height: 16px;
+}
+
+.resize-top-left {
+    top: 0;
+    left: 0;
+    cursor: nwse-resize;
+}
+
+.resize-top-right {
+    top: 0;
+    right: 0;
+    cursor: nesw-resize;
+}
+
+.resize-bottom-left {
+    bottom: 0;
+    left: 0;
+    cursor: nesw-resize;
+}
+
+.resize-bottom-right {
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize;
+}
+
 /* Widget Header */
 .widget-header {
     display: flex;
@@ -223,6 +289,15 @@
     margin: 0;
     color: var(--text-color);
     font-weight: 600;
+}
+
+.widget-header {
+    cursor: grab;
+    user-select: none;
+}
+
+.widget-header:active {
+    cursor: grabbing;
 }
 
 .widget-subtitle {
@@ -334,7 +409,7 @@
 /* Widget Messages */
 .widget-messages {
     flex: 1;
-    padding: 16px;
+    padding: 10px;
     overflow-y: auto;
     scroll-behavior: smooth;
 }
@@ -399,7 +474,7 @@
 .widget-input-wrapper {
     display: flex;
     gap: 8px;
-    align-items: flex-end;
+    align-items: center;
 }
 
 .widget-input-wrapper textarea {
@@ -412,6 +487,7 @@
     resize: none;
     font-family: inherit;
     line-height: 1.4;
+    min-height: 42px;
     max-height: 100px;
     background: var(--bg-color);
     color: var(--text-color);
@@ -630,7 +706,7 @@
 }
 
 .widget-messages .message-content {
-    max-width: 70%;
+    max-width: 100%;
     padding: 10px 12px;
     border-radius: 12px;
     font-size: 0.9em;

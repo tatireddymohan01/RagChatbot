@@ -13,11 +13,9 @@ let isWidgetMinimized = false;
 
 // DOM Elements - Declare but initialize after DOM loads
 let chatBubble, chatWidget, closeWidgetBtn, minimizeWidgetBtn;
-let chatTab, docsTab, chatContent, docsContent;
+let chatTab, chatContent;
 let chatMessages, messageInput, sendBtn;
-let fileInput, uploadBtn, uploadStatus;
-let urlInput, ingestUrlBtn, urlStatus;
-let systemStatus, fileLabel, docCount, chatCount;
+let docCount, chatCount;
 
 // Counters
 let documentsIngested = 0;
@@ -31,27 +29,18 @@ document.addEventListener('DOMContentLoaded', () => {
     closeWidgetBtn = document.getElementById('closeWidget');
     minimizeWidgetBtn = document.getElementById('minimizeWidget');
     chatTab = document.getElementById('chatTab');
-    docsTab = document.getElementById('docsTab');
     chatContent = document.getElementById('chatContent');
-    docsContent = document.getElementById('docsContent');
     chatMessages = document.getElementById('chatMessages');
     messageInput = document.getElementById('messageInput');
     sendBtn = document.getElementById('sendBtn');
-    fileInput = document.getElementById('fileInput');
-    uploadBtn = document.getElementById('uploadBtn');
-    uploadStatus = document.getElementById('uploadStatus');
-    urlInput = document.getElementById('urlInput');
-    ingestUrlBtn = document.getElementById('ingestUrlBtn');
-    urlStatus = document.getElementById('urlStatus');
-    systemStatus = document.getElementById('systemStatus');
-    fileLabel = document.getElementById('fileLabel');
     docCount = document.getElementById('docCount');
     chatCount = document.getElementById('chatCount');
     
     // Now setup everything
-    checkHealth();
     setupEventListeners();
     setupWidgetListeners();
+    setupResizeHandlers();
+    setupDragHandler();
     autoResizeTextarea();
     
     // Initialize widget state from localStorage
@@ -94,13 +83,7 @@ function setupWidgetListeners() {
         minimizeWidgetBtn.addEventListener('click', minimizeWidget);
     }
     
-    // Tab switching
-    if (chatTab) {
-        chatTab.addEventListener('click', () => switchTab('chat'));
-    }
-    if (docsTab) {
-        docsTab.addEventListener('click', () => switchTab('docs'));
-    }
+    // Tab switching - removed, only chat tab remains
 }
 
 function openWidget() {
@@ -137,18 +120,167 @@ function maximizeWidget() {
     isWidgetMinimized = false;
 }
 
-function switchTab(tab) {
-    if (tab === 'chat') {
-        chatTab.classList.add('active');
-        docsTab.classList.remove('active');
-        chatContent.classList.add('active');
-        docsContent.classList.remove('active');
-    } else {
-        docsTab.classList.add('active');
-        chatTab.classList.remove('active');
-        docsContent.classList.add('active');
-        chatContent.classList.remove('active');
-    }
+// Widget Resize Functionality
+function setupResizeHandlers() {
+    const resizeHandles = document.querySelectorAll('.resize-handle');
+    let isResizing = false;
+    let currentHandle = null;
+    let startX, startY, startWidth, startHeight, startLeft, startBottom;
+
+    resizeHandles.forEach(handle => {
+        handle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            currentHandle = handle;
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            const rect = chatWidget.getBoundingClientRect();
+            startWidth = rect.width;
+            startHeight = rect.height;
+            startLeft = window.innerWidth - rect.right;
+            startBottom = window.innerHeight - rect.bottom;
+            
+            e.preventDefault();
+        });
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing || !currentHandle) return;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        const minWidth = 320;
+        const minHeight = 400;
+        const maxWidth = window.innerWidth - 40;
+        const maxHeight = window.innerHeight - 120;
+
+        if (currentHandle.classList.contains('resize-right')) {
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+            chatWidget.style.width = newWidth + 'px';
+        }
+        
+        if (currentHandle.classList.contains('resize-left')) {
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - dx));
+            chatWidget.style.width = newWidth + 'px';
+            chatWidget.style.right = (startLeft - dx) + 'px';
+        }
+        
+        if (currentHandle.classList.contains('resize-bottom')) {
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
+            chatWidget.style.height = newHeight + 'px';
+        }
+        
+        if (currentHandle.classList.contains('resize-top')) {
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight - dy));
+            chatWidget.style.height = newHeight + 'px';
+            chatWidget.style.bottom = (startBottom + dy) + 'px';
+        }
+
+        // Corner handles
+        if (currentHandle.classList.contains('resize-bottom-right')) {
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
+            chatWidget.style.width = newWidth + 'px';
+            chatWidget.style.height = newHeight + 'px';
+        }
+
+        if (currentHandle.classList.contains('resize-bottom-left')) {
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - dx));
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
+            chatWidget.style.width = newWidth + 'px';
+            chatWidget.style.height = newHeight + 'px';
+            chatWidget.style.right = (startLeft - dx) + 'px';
+        }
+
+        if (currentHandle.classList.contains('resize-top-right')) {
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight - dy));
+            chatWidget.style.width = newWidth + 'px';
+            chatWidget.style.height = newHeight + 'px';
+            chatWidget.style.bottom = (startBottom + dy) + 'px';
+        }
+
+        if (currentHandle.classList.contains('resize-top-left')) {
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - dx));
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight - dy));
+            chatWidget.style.width = newWidth + 'px';
+            chatWidget.style.height = newHeight + 'px';
+            chatWidget.style.right = (startLeft - dx) + 'px';
+            chatWidget.style.bottom = (startBottom + dy) + 'px';
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        currentHandle = null;
+    });
+}
+
+// Setup drag to move functionality
+function setupDragHandler() {
+    const widgetHeader = document.querySelector('.widget-header');
+    const chatWidget = document.getElementById('chatWidget');
+    let isDragging = false;
+    let startX, startY;
+    let startLeft, startTop;
+
+    widgetHeader.addEventListener('mousedown', (e) => {
+        // Don't drag if clicking on buttons
+        if (e.target.closest('.widget-controls') || e.target.closest('button')) {
+            return;
+        }
+
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        
+        const rect = chatWidget.getBoundingClientRect();
+        startLeft = rect.left;
+        startTop = rect.top;
+        
+        // Change cursor
+        widgetHeader.style.cursor = 'grabbing';
+        
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        let newLeft = startLeft + dx;
+        let newTop = startTop + dy;
+
+        // Get widget dimensions
+        const rect = chatWidget.getBoundingClientRect();
+        const widgetWidth = rect.width;
+        const widgetHeight = rect.height;
+
+        // Constrain to viewport
+        const minLeft = 0;
+        const maxLeft = window.innerWidth - widgetWidth;
+        const minTop = 0;
+        const maxTop = window.innerHeight - widgetHeight;
+
+        newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
+        newTop = Math.max(minTop, Math.min(maxTop, newTop));
+
+        // Update position using top/left instead of bottom/right
+        chatWidget.style.left = newLeft + 'px';
+        chatWidget.style.top = newTop + 'px';
+        chatWidget.style.right = 'auto';
+        chatWidget.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            widgetHeader.style.cursor = 'grab';
+        }
+    });
 }
 
 // Setup Event Listeners
@@ -164,18 +296,6 @@ function setupEventListeners() {
         autoResizeTextarea();
         // Enable/disable send button based on input
         sendBtn.disabled = !messageInput.value.trim();
-    });
-    
-    uploadBtn.addEventListener('click', uploadDocuments);
-    ingestUrlBtn.addEventListener('click', ingestUrl);
-    
-    fileInput.addEventListener('change', (e) => {
-        const files = e.target.files;
-        if (files.length > 0) {
-            fileLabel.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
-        } else {
-            fileLabel.textContent = 'Choose files';
-        }
     });
 }
 
