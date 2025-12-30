@@ -3,7 +3,6 @@ RAG Chain Service
 Implements the conversational retrieval chain for question answering
 """
 from typing import List, Dict, Tuple, Optional
-from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from app.core.llm import get_llm, get_system_prompt
