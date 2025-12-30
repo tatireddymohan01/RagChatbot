@@ -9,11 +9,13 @@ from pydantic import BaseModel, Field, HttpUrl
 class URLIngestRequest(BaseModel):
     """URL ingestion request"""
     url: HttpUrl = Field(..., description="URL to scrape and ingest")
+    scrape_full_site: bool = Field(default=False, description="Whether to scrape the entire website or just the single URL")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence"
+                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+                "scrape_full_site": False
             }
         }
 

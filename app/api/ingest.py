@@ -169,9 +169,15 @@ async def ingest_url(request: URLIngestRequest):
         url = str(request.url)
         logger.info(f"Received URL for ingestion: {url}")
         
-        # Scrape the URL
+        # Scrape the URL or entire website
         web_scraper = get_web_scraper()
-        documents = web_scraper.scrape_url(url)
+        
+        if request.scrape_full_site:
+            logger.info(f"Scraping entire website from: {url}")
+            documents = web_scraper.scrape_website(url)
+        else:
+            logger.info(f"Scraping single URL: {url}")
+            documents = web_scraper.scrape_multiple_urls_selenium([url])
         
         if not documents:
             raise HTTPException(
@@ -191,8 +197,8 @@ async def ingest_url(request: URLIngestRequest):
         
         response = IngestResponse(
             status="success",
-            message=f"Successfully ingested content from URL",
-            documents_processed=1,
+            message=f"Successfully ingested content from {'website' if request.scrape_full_site else 'URL'}",
+            documents_processed=len(documents),
             chunks_created=num_added,
             sources=[url]
         )
