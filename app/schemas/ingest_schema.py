@@ -40,6 +40,18 @@ class URLDeleteRequest(BaseModel):
         }
 
 
+class SitemapIngestRequest(BaseModel):
+    """Sitemap ingestion request"""
+    domain: str = Field(..., description="Domain or full sitemap.xml URL to crawl")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "domain": "https://example.com"
+            }
+        }
+
+
 class IngestResponse(BaseModel):
     """Ingestion response"""
     status: str = Field(..., description="Ingestion status")

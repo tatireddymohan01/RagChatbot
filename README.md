@@ -150,15 +150,60 @@ Access the application:
 2. Restart the application
 3. Files are automatically processed on startup
 
-### Method 2: Web UI
+### Method 2: Web UI - Upload Files
 1. Open http://localhost:8000
 2. Use the upload feature in the interface
 
-### Method 3: API
+### Method 3: Web UI - Ingest URLs ⭐
+1. Open http://localhost:8000/admin
+2. **Option A: Single URLs** - Enter one or more URLs (always works)
+3. **Option B: Ingest from Sitemap** ⭐ *Recommended for Azure/Cloud*
+   - Works on Azure, AWS Lambda, Google Cloud Run
+   - Auto-discovers all URLs from sitemap.xml
+   - No ChromeDriver required
+   - Enter domain: `example.com` or `https://example.com`
+
+### Method 4: API
 ```bash
-curl -X POST http://localhost:8000/ingest/file \
+# Upload file
+curl -X POST http://localhost:8000/ingest/docs \
   -F "file=@document.pdf"
+
+# Ingest single URL
+curl -X POST http://localhost:8000/ingest/url \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/article"}'
+
+# Ingest from sitemap (cloud-native)
+curl -X POST http://localhost:8000/ingest/sitemap \
+  -H "Content-Type: application/json" \
+  -d '{"domain": "example.com"}'
 ```
+
+## 🗺️ Cloud Deployments (Azure, AWS Lambda, Google Cloud)
+
+### Important: Use Sitemap Mode for Cloud
+On Azure and other cloud platforms, **ChromeDriver is not available**. Instead of using "Full Site (auto-discover)":
+
+1. **Use the new Sitemap feature** ⭐ (Recommended)
+   - No ChromeDriver needed
+   - Auto-discovers URLs from sitemap.xml
+   - Works on all cloud platforms
+   - In Admin console: 🗺️ **Sitemap** card
+
+2. **Or use Single URLs mode**
+   - Manually enter URLs one at a time
+   - Always works, no dependencies
+   - In Admin console: **Ingest from URL(s)** card
+
+### ❌ Don't Use: Full Site (auto-discover) on Cloud
+This mode requires ChromeDriver and will show:
+```
+(ChromeDriver unavailable)
+```
+This is expected - use Sitemap or Single URLs instead.
+
+---
 
 ## ☁️ Deploy to Azure
 
@@ -266,6 +311,9 @@ Interactive API testing: http://localhost:8000/docs
 | `DEBUG` | Debug mode | false |
 | `CORS_ORIGINS` | Allowed origins | ["*"] |
 | `API_ONLY` | Disable UI | false |
+| `CHROME_BINARY_PATH` | Path to Chrome/Chromium (optional) | Auto-detect |
+
+**Note:** ChromeDriver is optional. The "Full Site" mode uses it if available, but the new **Sitemap feature** doesn't need it and is recommended for cloud deployments.
 
 ## 🛠️ Development
 
@@ -345,6 +393,14 @@ lsof -ti:8000 | xargs kill
 - Verify environment variables are set
 - Ensure startup command is correct
 - Restart the Web App
+
+### Azure: Full Site Mode Shows "(ChromeDriver unavailable)"
+**Solution:** This is expected - ChromeDriver is not available on Azure Linux.
+- ✅ **Use Sitemap mode instead** (recommended)
+  - Go to admin console → 🗺️ **Sitemap** card
+  - Enter domain: `example.com`
+  - All URLs auto-discovered and ingested
+- Or use Single URLs mode and enter URLs manually
 
 ### Document not processing
 **Solution:**

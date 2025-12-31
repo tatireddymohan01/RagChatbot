@@ -4,9 +4,10 @@ Handles uploading documents and scraping web content
 """
 from typing import List
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.schemas.ingest_schema import URLIngestRequest, URLDeleteRequest, IngestResponse
+from app.schemas.ingest_schema import URLIngestRequest, URLDeleteRequest, SitemapIngestRequest, IngestResponse
 from app.services.document_loader import get_document_loader
 from app.services.web_scraper import get_web_scraper
+from app.services.sitemap_crawler import get_sitemap_crawler
 from app.services.document_monitor import get_document_monitor
 from app.core.vectorstore import get_vectorstore_manager
 from app.core.config import get_settings
@@ -245,4 +246,90 @@ async def delete_url_content(request: URLDeleteRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error deleting URL content: {str(e)}"
+        )
+
+
+@router.post("/ingest/sitemap", response_model=IngestResponse)
+async def ingest_from_sitemap(request: SitemapIngestRequest):
+    """
+    Parse sitemap.xml and ingest all discovered URLs
+    Works great on Azure and cloud environments (no ChromeDriver needed)
+    
+    Args:
+        request: SitemapIngestRequest with domain
+        
+    Returns:
+        IngestResponse with processing status and statistics
+    """
+    try:
+        domain = str(request.domain).strip()
+        logger.info(f"Starting sitemap crawl for: {domain}")
+        
+        # Parse sitemap and extract URLs
+        sitemap_crawler = get_sitemap_crawler()
+        urls = sitemap_crawler.parse_sitemap(domain)
+        
+        if not urls:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No URLs found in sitemap for {domain}"
+            )
+        
+        logger.info(f"Found {len(urls)} URLs from sitemap. Starting ingestion...")
+        
+        # Scrape and ingest each URL
+        web_scraper = get_web_scraper()
+        document_loader = get_document_loader()
+        vectorstore_manager = get_vectorstore_manager()
+        
+        total_chunks = 0
+        successful_urls = []
+        failed_urls = []
+        
+        for idx, url in enumerate(urls, 1):
+            try:
+                logger.info(f"[{idx}/{len(urls)}] Processing: {url}")
+                
+                # Scrape the URL
+                documents = web_scraper.scrape_multiple_urls_selenium([url])
+                
+                if documents:
+                    # Chunk the documents
+                    chunks = document_loader.chunk_documents(documents)
+                    
+                    # Add to vector store
+                    num_added = vectorstore_manager.add_documents(chunks)
+                    total_chunks += num_added
+                    successful_urls.append(url)
+                    logger.info(f"✓ Ingested {num_added} chunks from {url}")
+                else:
+                    failed_urls.append(url)
+                    logger.warning(f"✗ No content scraped from {url}")
+                    
+            except Exception as e:
+                failed_urls.append(url)
+                logger.error(f"Error processing {url}: {str(e)[:100]}")
+        
+        response = IngestResponse(
+            status="success" if successful_urls else "partial",
+            message=f"Ingested {len(successful_urls)}/{len(urls)} URLs from sitemap",
+            documents_processed=len(successful_urls),
+            chunks_created=total_chunks,
+            sources=successful_urls[:50]  # Return first 50 for response size
+        )
+        
+        logger.info(f"Sitemap ingestion complete: {len(successful_urls)} successful, {len(failed_urls)} failed, {total_chunks} chunks")
+        
+        if failed_urls:
+            logger.warning(f"Failed URLs: {failed_urls[:10]}")
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during sitemap ingestion: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing sitemap: {str(e)}"
         )

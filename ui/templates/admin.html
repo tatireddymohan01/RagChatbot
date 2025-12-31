@@ -169,6 +169,7 @@
     .card.card-files::before { background: linear-gradient(135deg, #6366f1, #14b8a6); }
     .card.card-folder::before { background: linear-gradient(135deg, #14b8a6, #10b981); }
     .card.card-reset::before { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+    .card.card-sitemap::before { background: linear-gradient(135deg, #22c55e, #10b981); }
     .card::after {
       content: '';
       position: absolute;
@@ -406,6 +407,21 @@
         </div>
       </section>
 
+      <section class="card-grid" id="sitemap">
+        <div class="card card-sitemap">
+          <div class="section-tag">🗺️ Sitemap</div>
+          <h2>Ingest from Sitemap</h2>
+          <p>Auto-discover and ingest all URLs from a site's sitemap.xml (perfect for cloud deployments).</p>
+          <label for="sitemapDomain">Domain</label>
+          <input id="sitemapDomain" type="text" placeholder="example.com or https://example.com" />
+          <div style="margin-top: 10px; padding: 12px; background: rgba(34, 197, 94, 0.1); border-radius: 10px; border-left: 3px solid var(--success);">
+            <p class="muted" style="font-size: 0.85rem;">✓ No ChromeDriver needed • Works on Azure, Docker, serverless • Discovers URLs from sitemap.xml</p>
+          </div>
+          <button id="sitemapBtn" style="margin-top: 12px;">Ingest from Sitemap</button>
+          <pre id="sitemapOut">Awaiting request…</pre>
+        </div>
+      </section>
+
       <section class="card-grid" id="files">
         <div class="card card-files">
           <div class="section-tag">📁 Files</div>
@@ -456,11 +472,34 @@
     const updateMeta = (result) => {
       const envLabel = document.getElementById('envLabel');
       const lastCheck = document.getElementById('lastCheck');
+      const fullSiteRadio = document.getElementById('modeFull');
+      
       if (result && typeof result === 'object') {
         envLabel.textContent = result.service ? result.service : 'Detected';
         lastCheck.textContent = new Date().toLocaleTimeString();
+        
+        // Check if full site scraping is available
+        const capabilities = result.capabilities || {};
+        const fullSiteAvailable = capabilities.full_site_scraping !== false;
+        
+        if (!fullSiteAvailable) {
+          fullSiteRadio.disabled = true;
+          fullSiteRadio.parentElement.style.opacity = '0.5';
+          fullSiteRadio.parentElement.style.cursor = 'not-allowed';
+          const label = fullSiteRadio.nextElementSibling;
+          if (label) label.textContent += ' (ChromeDriver unavailable)';
+        }
       }
     };
+
+    // Auto-run health check on page load
+    window.addEventListener('load', () => {
+      const healthBtn = document.getElementById('healthBtn');
+      const healthOut = document.getElementById('healthOut');
+      setLoading(healthBtn, true);
+      healthOut.textContent = 'Auto-checking health...';
+      handle({ path: '/health', button: healthBtn, output: healthOut });
+    });
 
     const handle = async ({ path, method = 'GET', body, isForm = false, button, output }) => {
       const base = apiBaseInput.value.trim() || window.location.origin;
@@ -542,13 +581,24 @@
       // If multiple URLs and single mode, process each separately
       if (urlList.length > 1 && mode === 'single') {
         processMultipleUrls(urlList);
+      } else if (mode === 'full') {
+        // Full site mode - warn about ChromeDriver requirement
+        const url = urlList[0];
+        document.getElementById('urlOut').textContent = 'Attempting full-site discovery...\n(Note: Requires ChromeDriver. On Azure/cloud, use Single URLs mode if it fails.)';
+        handle({
+          path: '/ingest/url',
+          method: 'POST',
+          body: { url, scrape_full_site: true },
+          button: document.getElementById('urlBtn'),
+          output: document.getElementById('urlOut')
+        });
       } else {
-        // Single URL or full site mode
+        // Single URL mode
         const url = urlList[0];
         handle({
           path: '/ingest/url',
           method: 'POST',
-          body: { url, scrape_full_site: mode === 'full' },
+          body: { url, scrape_full_site: false },
           button: document.getElementById('urlBtn'),
           output: document.getElementById('urlOut')
         });
@@ -662,6 +712,45 @@
         button: document.getElementById('resetBtn'),
         output: document.getElementById('resetOut')
       });
+    });
+
+    // Ingest from sitemap
+    document.getElementById('sitemapBtn').addEventListener('click', async () => {
+      const domain = document.getElementById('sitemapDomain').value.trim();
+      const output = document.getElementById('sitemapOut');
+      const btn = document.getElementById('sitemapBtn');
+
+      if (!domain) {
+        output.textContent = 'Please enter a domain.';
+        return;
+      }
+
+      btn.dataset.label = btn.dataset.label || btn.textContent;
+      setLoading(btn, true);
+      output.textContent = 'Discovering URLs from sitemap...\n(This may take a moment)\n';
+
+      try {
+        const base = document.getElementById('apiBase').value.trim() || window.location.origin;
+        const target = base.replace(/\/$/, '') + '/ingest/sitemap';
+        const res = await fetch(target, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain })
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = text; }
+        
+        output.textContent = format(data);
+        
+        if (res.ok && data.chunks_created > 0) {
+          output.textContent += '\n\n✅ Sitemap ingestion completed successfully!';
+        }
+      } catch (err) {
+        output.textContent = `Error: ${err}`;
+      } finally {
+        setLoading(btn, false);
+      }
     });
   </script>
 </body>
