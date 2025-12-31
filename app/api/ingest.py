@@ -307,10 +307,10 @@ async def ingest_from_sitemap(request: SitemapIngestRequest):
                     # Chunk the documents
                     chunks = document_loader.chunk_documents(documents)
                     logger.info(f"[SITEMAP_INGEST] [{idx}/{len(urls)}] Created {len(chunks)} chunks")
-                                        # DEBUG: Log chunk content
-                                        if chunks:
-                                            logger.info(f"[SITEMAP_DEBUG] First chunk page_content length: {len(chunks[0].page_content)} chars")
-                                            logger.info(f"[SITEMAP_DEBUG] First chunk page_content preview: {chunks[0].page_content[:200]}")
+                    # DEBUG: Log chunk content
+                    if chunks:
+                        logger.info(f"[SITEMAP_DEBUG] First chunk page_content length: {len(chunks[0].page_content)} chars")
+                        logger.info(f"[SITEMAP_DEBUG] First chunk page_content preview: {chunks[0].page_content[:200]}")
                     
                     # Add to vector store
                     num_added = vectorstore_manager.add_documents(chunks)
