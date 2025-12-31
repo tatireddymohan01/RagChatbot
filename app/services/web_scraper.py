@@ -162,41 +162,77 @@ class WebScraperService:
         """Lightweight HTTP + BeautifulSoup scraper (no Selenium, cloud-safe)."""
         results: List[Document] = []
         failed: List[str] = []
+        
+        # Standard browser User-Agent to avoid server blocks
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        
+        logger.info(f"[SCRAPE_START] Processing {len(urls)} URLs with simple HTTP scraper")
 
         for url in urls:
             try:
-                logger.info(f"Simple scrape: {url}")
-                resp = requests.get(url, timeout=15)
+                logger.info(f"[SCRAPE_FETCH] Starting: {url}")
+                resp = requests.get(url, timeout=15, headers=headers)
                 resp.raise_for_status()
+                logger.info(f"[SCRAPE_FETCH] Status 200 OK, raw HTML size: {len(resp.text)} chars")
 
                 soup = BeautifulSoup(resp.text, "html.parser")
-                for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                logger.info(f"[SCRAPE_PARSE] BeautifulSoup parsed HTML")
+                
+                # Remove noise: scripts, styles, navigation, etc.
+                for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
                     tag.decompose()
+                logger.info(f"[SCRAPE_CLEAN] Removed noise tags (scripts, styles, nav, etc.)")
 
-                text = soup.get_text(separator="\n", strip=True)
+                # Try to extract main content first (common patterns)
+                main_content = None
+                for selector in ["main", "article", "[role='main']", ".content", ".main-content"]:
+                    elem = soup.select_one(selector)
+                    if elem:
+                        main_content = elem
+                        logger.info(f"[SCRAPE_MAIN] Found main content with selector: {selector}")
+                        break
+                
+                # Fall back to body if no main content found
+                content_elem = main_content if main_content else soup.body or soup
+                if not main_content:
+                    logger.info(f"[SCRAPE_MAIN] No main content selector matched, using body/root")
+                
+                # Extract text with better formatting
+                text = content_elem.get_text(separator="\n", strip=True)
                 lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
                 cleaned = "\n".join(lines)
+                logger.info(f"[SCRAPE_TEXT] Extracted {len(lines)} lines, {len(cleaned)} chars after cleaning")
 
+                # Get title
                 title = soup.title.string if soup.title else urlparse(url).path or url
+                logger.info(f"[SCRAPE_TITLE] Title: {title}")
 
-                results.append(
-                    Document(
-                        page_content=cleaned,
-                        metadata={
-                            "source": url,
-                            "title": title,
-                            "type": "web_page",
-                            "domain": urlparse(url).netloc,
-                        },
+                if cleaned and len(cleaned) > 100:  # Ensure we have meaningful content
+                    results.append(
+                        Document(
+                            page_content=cleaned,
+                            metadata={
+                                "source": url,
+                                "title": title,
+                                "type": "web_page",
+                                "domain": urlparse(url).netloc,
+                            },
+                        )
                     )
-                )
+                    logger.info(f"[SCRAPE_SUCCESS] ✓ Document created: {len(cleaned)} chars, title: {title}")
+                else:
+                    failed.append(url)
+                    logger.warning(f"[SCRAPE_FAIL] ✗ Insufficient content from {url} ({len(cleaned)} chars, need >100)")
+                    
             except Exception as exc:
                 failed.append(url)
-                logger.warning(f"Simple scrape failed for {url}: {str(exc)[:120]}")
+                logger.error(f"[SCRAPE_ERROR] Exception for {url}: {type(exc).__name__}: {str(exc)[:120]}")
 
-        logger.info(f"Simple scrape summary: success={len(results)} failed={len(failed)}")
+        logger.info(f"[SCRAPE_END] Summary: {len(results)} succeeded, {len(failed)} failed out of {len(urls)} total")
         if failed:
-            logger.warning(f"Failed URLs (simple scrape): {failed[:10]}")
+            logger.warning(f"[SCRAPE_END] Failed URLs: {failed[:10]}")
 
         return results
     

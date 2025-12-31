@@ -168,33 +168,39 @@ async def ingest_url(request: URLIngestRequest):
     """
     try:
         url = str(request.url)
-        logger.info(f"Received URL for ingestion: {url}")
+        logger.info(f"[INGEST_URL_START] Received URL: {url}")
+        logger.info(f"[INGEST_URL_START] scrape_full_site={request.scrape_full_site}")
         
         # Scrape the URL or entire website
         web_scraper = get_web_scraper()
         
         if request.scrape_full_site:
-            logger.info(f"Scraping entire website from: {url}")
+            logger.info(f"[INGEST_URL_SCRAPE] Starting full website scrape from: {url}")
             documents = web_scraper.scrape_website(url)
+            logger.info(f"[INGEST_URL_SCRAPE] Full site scrape returned {len(documents)} documents")
         else:
-            logger.info(f"Scraping single URL: {url}")
+            logger.info(f"[INGEST_URL_SCRAPE] Starting single URL scrape: {url}")
             documents = web_scraper.scrape_multiple_urls_simple([url])
+            logger.info(f"[INGEST_URL_SCRAPE] Single URL scrape returned {len(documents)} documents")
         
         if not documents:
+            logger.warning(f"[INGEST_URL_FAIL] No content scraped from {url}")
             raise HTTPException(
                 status_code=400,
                 detail=f"Could not scrape content from URL: {url}"
             )
         
+        logger.info(f"[INGEST_URL_CHUNK] Chunking {len(documents)} documents")
         # Chunk the documents
         document_loader = get_document_loader()
         chunks = document_loader.chunk_documents(documents)
-        
-        logger.info(f"Created {len(chunks)} chunks from URL content")
+        logger.info(f"[INGEST_URL_CHUNK] Created {len(chunks)} chunks from documents")
         
         # Add to vector store
+        logger.info(f"[INGEST_URL_VECTOR] Adding {len(chunks)} chunks to vector store")
         vectorstore_manager = get_vectorstore_manager()
         num_added = vectorstore_manager.add_documents(chunks)
+        logger.info(f"[INGEST_URL_VECTOR] ✓ Added {num_added} chunks to vector store")
         
         response = IngestResponse(
             status="success",
@@ -204,7 +210,7 @@ async def ingest_url(request: URLIngestRequest):
             sources=[url]
         )
         
-        logger.info(f"URL ingestion complete: {num_added} chunks added")
+        logger.info(f"[INGEST_URL_END] ✓ Success: {len(documents)} docs, {num_added} chunks")
         return response
         
     except HTTPException:
@@ -288,26 +294,28 @@ async def ingest_from_sitemap(request: SitemapIngestRequest):
         
         for idx, url in enumerate(urls, 1):
             try:
-                logger.info(f"[{idx}/{len(urls)}] Processing: {url}")
+                logger.info(f"[SITEMAP_INGEST] [{idx}/{len(urls)}] Processing: {url}")
                 # Scrape the URL (cloud-safe, no Selenium)
                 documents = web_scraper.scrape_multiple_urls_simple([url])
+                logger.info(f"[SITEMAP_INGEST] [{idx}/{len(urls)}] Scraped {len(documents)} documents from {url}")
 
                 if documents:
                     # Chunk the documents
                     chunks = document_loader.chunk_documents(documents)
+                    logger.info(f"[SITEMAP_INGEST] [{idx}/{len(urls)}] Created {len(chunks)} chunks")
                     
                     # Add to vector store
                     num_added = vectorstore_manager.add_documents(chunks)
                     total_chunks += num_added
                     successful_urls.append(url)
-                    logger.info(f"✓ Ingested {num_added} chunks from {url}")
+                    logger.info(f"[SITEMAP_INGEST] [{idx}/{len(urls)}] ✓ Added {num_added} chunks to vector store")
                 else:
                     failed_urls.append(url)
-                    logger.warning(f"✗ No content scraped from {url}")
+                    logger.warning(f"[SITEMAP_INGEST] [{idx}/{len(urls)}] ✗ No documents from {url}")
                     
             except Exception as e:
                 failed_urls.append(url)
-                logger.error(f"Error processing {url}: {str(e)[:100]}")
+                logger.error(f"[SITEMAP_INGEST] [{idx}/{len(urls)}] ✗ Exception for {url}: {type(e).__name__}: {str(e)[:120]}")
         
         response = IngestResponse(
             status="success" if successful_urls else "partial",
@@ -317,10 +325,10 @@ async def ingest_from_sitemap(request: SitemapIngestRequest):
             sources=successful_urls[:50]  # Return first 50 for response size
         )
         
-        logger.info(f"Sitemap ingestion complete: {len(successful_urls)} successful, {len(failed_urls)} failed, {total_chunks} chunks")
+        logger.info(f"[SITEMAP_END] ✓ Complete: {len(successful_urls)}/{len(urls)} successful, {total_chunks} total chunks")
         
         if failed_urls:
-            logger.warning(f"Failed URLs: {failed_urls[:10]}")
+            logger.warning(f"[SITEMAP_END] Failed URLs: {failed_urls[:10]}")
         
         return response
         
