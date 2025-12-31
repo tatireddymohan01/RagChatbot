@@ -39,6 +39,7 @@ requests>=2.31.0
 
 # Utilities
 python-dotenv>=1.0.0
+nest-asyncio>=1.5.8
 
 # Core dependencies
 numpy>=1.26.0

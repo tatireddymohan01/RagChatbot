@@ -93,8 +93,9 @@ class WebScraperService:
                 return None
             
             import asyncio
+            import concurrent.futures
             
-            # Run async playwright in sync context
+            # Define async scrape function
             async def scrape():
                 async with async_playwright() as p:
                     browser = await p.chromium.launch(headless=True)
@@ -113,14 +114,13 @@ class WebScraperService:
                     finally:
                         await browser.close()
             
-            # Get or create event loop
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            # Run in a separate thread to avoid event loop conflicts
+            def run_in_thread():
+                return asyncio.run(scrape())
             
-            html_content = loop.run_until_complete(scrape())
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_in_thread)
+                html_content = future.result(timeout=30)
             
             # Parse with BeautifulSoup
             soup = BeautifulSoup(html_content, "html.parser")
