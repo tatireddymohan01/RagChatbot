@@ -178,7 +178,7 @@ async def ingest_url(request: URLIngestRequest):
             documents = web_scraper.scrape_website(url)
         else:
             logger.info(f"Scraping single URL: {url}")
-            documents = web_scraper.scrape_multiple_urls_selenium([url])
+            documents = web_scraper.scrape_multiple_urls_simple([url])
         
         if not documents:
             raise HTTPException(
