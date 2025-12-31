@@ -2,6 +2,10 @@
 Web Scraper Service
 Handles scraping and processing web content using Playwright (JS-capable) with requests fallback
 """
+import os
+import sys
+import subprocess
+import threading
 from typing import List
 from langchain_core.documents import Document
 from urllib.parse import urlparse
@@ -18,6 +22,10 @@ except ImportError:
     async_playwright = None
 
 logger = get_logger(__name__)
+
+# Simple guard so we only attempt a Playwright browser install once
+_playwright_install_lock = threading.Lock()
+_playwright_ready = False
 
 
 class WebScraperService:
@@ -85,17 +93,60 @@ class WebScraperService:
 
         return results
     
-    def _scrape_with_playwright(self, url: str) -> Document:
+    def _install_playwright_browsers(self) -> bool:
+        """Install Playwright Chromium in a writable path (Azure-safe)."""
+        global _playwright_ready
+        if _playwright_ready:
+            return True
+
+        with _playwright_install_lock:
+            if _playwright_ready:
+                return True
+
+            if not PLAYWRIGHT_AVAILABLE:
+                logger.info("[PLAYWRIGHT_INSTALL] Playwright package not available")
+                return False
+
+            browser_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+
+            # Default to Azure-safe persistent path if none is provided
+            if not browser_path:
+                if os.name != "nt":
+                    browser_path = "/home/site/wwwroot/.cache/ms-playwright"
+                    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browser_path
+                else:
+                    browser_path = None
+
+            if browser_path:
+                try:
+                    os.makedirs(browser_path, exist_ok=True)
+                except Exception as exc:  # pragma: no cover
+                    logger.warning(f"[PLAYWRIGHT_INSTALL] Could not create browser path: {exc}")
+
+            cmd = [sys.executable, "-m", "playwright", "install", "chromium"]
+            try:
+                logger.info(f"[PLAYWRIGHT_INSTALL] Installing Chromium to {browser_path or 'default location'}")
+                subprocess.run(cmd, check=True, timeout=240, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                _playwright_ready = True
+                logger.info("[PLAYWRIGHT_INSTALL] Chromium install succeeded")
+                return True
+            except Exception as exc:
+                logger.warning(f"[PLAYWRIGHT_INSTALL] Install failed: {type(exc).__name__}: {str(exc)[:120]}")
+                return False
+
+    def _scrape_with_playwright(self, url: str, allow_install: bool = True) -> Document:
         """Scrape URL using Playwright (handles JavaScript rendering)"""
         try:
             if not PLAYWRIGHT_AVAILABLE:
                 logger.info(f"[PLAYWRIGHT] Not available, skipping")
                 return None
-            
+
+            if not _playwright_ready:
+                self._install_playwright_browsers()
+
             import asyncio
             import concurrent.futures
-            
-            # Define async scrape function
+
             async def scrape():
                 async with async_playwright() as p:
                     browser = await p.chromium.launch(headless=True)
@@ -105,45 +156,38 @@ class WebScraperService:
                         )
                         logger.info(f"[PLAYWRIGHT] Navigating to {url}")
                         await page.goto(url, timeout=15000, wait_until="networkidle")
-                        
-                        # Get rendered HTML after JavaScript execution
                         html_content = await page.content()
                         logger.info(f"[PLAYWRIGHT] Rendered HTML size: {len(html_content)} chars")
-                        
                         return html_content
                     finally:
                         await browser.close()
-            
-            # Run in a separate thread to avoid event loop conflicts
+
             def run_in_thread():
                 return asyncio.run(scrape())
-            
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(run_in_thread)
                 html_content = future.result(timeout=30)
-            
-            # Parse with BeautifulSoup
+
             soup = BeautifulSoup(html_content, "html.parser")
-            
-            # Remove noise
+
             for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
                 tag.decompose()
-            
-            # Extract main content
+
             main_content = None
             for selector in ["main", "article", "[role='main']", ".content", ".main-content", ".container"]:
                 elem = soup.select_one(selector)
                 if elem:
                     main_content = elem
                     break
-            
+
             content_elem = main_content if main_content else soup.body or soup
             text = content_elem.get_text(separator="\n", strip=True)
             lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
             cleaned = "\n".join(lines)
-            
+
             title = soup.title.string if soup.title else urlparse(url).path or url
-            
+
             if cleaned and len(cleaned) > 100:
                 logger.info(f"[PLAYWRIGHT] ✓ Extracted {len(cleaned)} chars")
                 return Document(
@@ -159,9 +203,14 @@ class WebScraperService:
             else:
                 logger.info(f"[PLAYWRIGHT] Content too small ({len(cleaned)} chars)")
                 return None
-                
+
         except Exception as e:
-            logger.warning(f"[PLAYWRIGHT] Error: {type(e).__name__}: {str(e)[:100]}")
+            message = str(e)
+            if allow_install and "Executable doesn't exist" in message:
+                logger.warning("[PLAYWRIGHT] Chromium missing; attempting install then retry")
+                if self._install_playwright_browsers():
+                    return self._scrape_with_playwright(url, allow_install=False)
+            logger.warning(f"[PLAYWRIGHT] Error: {type(e).__name__}: {message[:100]}")
             return None
     
     def _scrape_with_requests(self, url: str) -> Document:
