@@ -3,7 +3,7 @@ Ingestion API Schemas
 Request and response models for document/URL ingestion
 """
 from typing import List, Optional
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, model_validator
 
 
 class URLIngestRequest(BaseModel):
@@ -16,6 +16,26 @@ class URLIngestRequest(BaseModel):
             "example": {
                 "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
                 "scrape_full_site": False
+            }
+        }
+
+
+class URLDeleteRequest(BaseModel):
+    """URL deletion request"""
+    url: Optional[HttpUrl] = Field(default=None, description="Specific URL to delete from the index")
+    domain: Optional[str] = Field(default=None, description="Domain to delete all scraped pages")
+
+    @model_validator(mode="before")
+    def at_least_one(cls, values):
+        if not values.get("url") and not values.get("domain"):
+            raise ValueError("Either url or domain must be provided")
+        return values
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "url": "https://example.com/article",
+                "domain": None
             }
         }
 

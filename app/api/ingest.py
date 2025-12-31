@@ -4,7 +4,7 @@ Handles uploading documents and scraping web content
 """
 from typing import List
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.schemas.ingest_schema import URLIngestRequest, IngestResponse
+from app.schemas.ingest_schema import URLIngestRequest, URLDeleteRequest, IngestResponse
 from app.services.document_loader import get_document_loader
 from app.services.web_scraper import get_web_scraper
 from app.services.document_monitor import get_document_monitor
@@ -213,4 +213,36 @@ async def ingest_url(request: URLIngestRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error processing URL: {str(e)}"
+        )
+
+
+@router.post("/ingest/url/delete")
+async def delete_url_content(request: URLDeleteRequest):
+    """Delete ingested URL content by exact URL or domain"""
+    try:
+        if not request.url and not request.domain:
+            raise HTTPException(status_code=400, detail="Provide url or domain")
+
+        vectorstore_manager = get_vectorstore_manager()
+        result = vectorstore_manager.delete_by_source(
+            url=str(request.url) if request.url else None,
+            domain=request.domain
+        )
+
+        return {
+            "status": "success",
+            "message": f"Deleted {result['deleted']} vector(s)",
+            "deleted": result['deleted'],
+            "matched": result['matched'],
+            "url": str(request.url) if request.url else None,
+            "domain": request.domain
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting URL content: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting URL content: {str(e)}"
         )

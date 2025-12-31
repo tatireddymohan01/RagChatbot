@@ -118,6 +118,19 @@ async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/admin")
+async def admin_console(request: Request):
+    """Admin console with UI actions for core endpoints"""
+    if settings.api_only or templates is None:
+        return {
+            "message": "Admin console disabled in API-only mode",
+            "mode": "API-only",
+            "docs": "/docs",
+            "redoc": "/redoc"
+        }
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+
 @app.get("/api")
 async def api_info():
     """API information endpoint"""

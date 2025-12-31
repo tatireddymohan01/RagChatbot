@@ -5,6 +5,7 @@ Handles FAISS vector store initialization, loading, and persistence
 import os
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import urlparse
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from app.core.embeddings import get_embeddings
@@ -176,6 +177,72 @@ class VectorStoreManager:
     def reset(self):
         """Reset the vector store (alias for clear_index)"""
         self.clear_index()
+
+    def _normalize_domain(self, value: Optional[str]) -> str:
+        if not value:
+            return ""
+        parsed = urlparse(value)
+        candidate = parsed.netloc if parsed.netloc else value
+        candidate = candidate.lower().lstrip(".")
+        if candidate.startswith("www."):
+            candidate = candidate[4:]
+        return candidate
+
+    def _domains_match(self, src_domain: str, meta_domain: str, target: str) -> bool:
+        if not target:
+            return False
+        # exact match
+        if src_domain == target or meta_domain == target:
+            return True
+        # allow subdomain matches (e.g., api.example.com matches example.com)
+        if src_domain.endswith("." + target) or meta_domain.endswith("." + target):
+            return True
+        return False
+
+    def delete_by_source(self, url: str = None, domain: str = None) -> dict:
+        """Delete vectors whose metadata.source matches a URL or domain"""
+        if self.vectorstore is None:
+            return {"deleted": 0, "matched": 0}
+
+        if not url and not domain:
+            raise ValueError("Provide url or domain to delete")
+
+        normalized_domain = self._normalize_domain(domain)
+        normalized_url = url.rstrip("/") if url else None
+
+        docstore = getattr(self.vectorstore, "docstore", None)
+        id_map = getattr(self.vectorstore, "index_to_docstore_id", None)
+
+        if docstore is None or id_map is None:
+            raise RuntimeError("Vector store docstore not available")
+
+        targets = []
+        for doc_id, doc in docstore._dict.items():
+            src = doc.metadata.get("source", "") if doc and doc.metadata else ""
+            if not src:
+                continue
+            src_domain = self._normalize_domain(urlparse(src).netloc)
+            meta_domain = self._normalize_domain(doc.metadata.get("domain")) if doc.metadata else ""
+
+            match_url = False
+            if normalized_url:
+                src_clean = src.rstrip("/")
+                match_url = src_clean == normalized_url
+
+            match_domain = False
+            if normalized_domain:
+                match_domain = self._domains_match(src_domain, meta_domain, normalized_domain)
+
+            if match_url or match_domain:
+                targets.append(doc_id)
+
+        if not targets:
+            return {"deleted": 0, "matched": 0}
+
+        self.vectorstore.delete(ids=targets)
+        self.save()
+
+        return {"deleted": len(targets), "matched": len(targets)}
 
 
 # Global vector store instance

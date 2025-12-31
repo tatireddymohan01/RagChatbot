@@ -130,7 +130,8 @@ class WebScraperService:
                             metadata={
                                 "source": url,
                                 "title": title,
-                                "type": "web_page"
+                                "type": "web_page",
+                                "domain": urlparse(url).netloc
                             }
                         )
                         
