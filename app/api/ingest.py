@@ -289,10 +289,9 @@ async def ingest_from_sitemap(request: SitemapIngestRequest):
         for idx, url in enumerate(urls, 1):
             try:
                 logger.info(f"[{idx}/{len(urls)}] Processing: {url}")
-                
-                # Scrape the URL
-                documents = web_scraper.scrape_multiple_urls_selenium([url])
-                
+                # Scrape the URL (cloud-safe, no Selenium)
+                documents = web_scraper.scrape_multiple_urls_simple([url])
+
                 if documents:
                     # Chunk the documents
                     chunks = document_loader.chunk_documents(documents)

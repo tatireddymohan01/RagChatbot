@@ -12,13 +12,14 @@ from selenium.webdriver.support import expected_conditions as EC
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import time
+import requests
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class WebScraperService:
-    """Service for scraping web content using Selenium"""
+    """Service for scraping web content (Selenium + HTTP fallback)"""
     
     def __init__(self):
         pass
@@ -156,6 +157,48 @@ class WebScraperService:
         except Exception as e:
             logger.error(f"Error scraping multiple URLs with Selenium: {e}")
             raise
+
+    def scrape_multiple_urls_simple(self, urls: List[str]) -> List[Document]:
+        """Lightweight HTTP + BeautifulSoup scraper (no Selenium, cloud-safe)."""
+        results: List[Document] = []
+        failed: List[str] = []
+
+        for url in urls:
+            try:
+                logger.info(f"Simple scrape: {url}")
+                resp = requests.get(url, timeout=15)
+                resp.raise_for_status()
+
+                soup = BeautifulSoup(resp.text, "html.parser")
+                for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                    tag.decompose()
+
+                text = soup.get_text(separator="\n", strip=True)
+                lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+                cleaned = "\n".join(lines)
+
+                title = soup.title.string if soup.title else urlparse(url).path or url
+
+                results.append(
+                    Document(
+                        page_content=cleaned,
+                        metadata={
+                            "source": url,
+                            "title": title,
+                            "type": "web_page",
+                            "domain": urlparse(url).netloc,
+                        },
+                    )
+                )
+            except Exception as exc:
+                failed.append(url)
+                logger.warning(f"Simple scrape failed for {url}: {str(exc)[:120]}")
+
+        logger.info(f"Simple scrape summary: success={len(results)} failed={len(failed)}")
+        if failed:
+            logger.warning(f"Failed URLs (simple scrape): {failed[:10]}")
+
+        return results
     
     def scrape_website(self, base_url: str) -> List[Document]:
         """
