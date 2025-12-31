@@ -145,6 +145,86 @@ async def api_info():
     }
 
 
+@app.get("/debug")
+async def debug_info():
+    """Debug endpoint for Azure diagnostics (use with caution in production)"""
+    logger.info("[DEBUG] Debug endpoint accessed")
+    
+    try:
+        # Check configuration
+        settings = get_settings()
+        config_ok = {
+            "app_name": settings.app_name,
+            "app_version": settings.app_version,
+            "api_only": settings.api_only,
+            "debug": settings.debug,
+            "model_name": settings.model_name,
+            "embedding_model": settings.embedding_model,
+            "use_huggingface_llm": settings.use_huggingface_llm,
+            "use_huggingface_embeddings": settings.use_huggingface_embeddings,
+            "faiss_index_path": settings.faiss_index_path,
+            "documents_folder": settings.documents_folder,
+        }
+        
+        # Check core services initialization
+        from app.core.llm import get_llm
+        from app.core.embeddings import get_embeddings
+        from app.core.vectorstore import get_vectorstore_manager
+        from app.services.document_loader import get_document_loader
+        
+        llm_ok = False
+        embeddings_ok = False
+        vectorstore_ok = False
+        loader_ok = False
+        
+        try:
+            llm = get_llm()
+            llm_ok = True
+            logger.info("[DEBUG] LLM initialized successfully")
+        except Exception as e:
+            logger.error(f"[DEBUG] LLM init failed: {e}")
+        
+        try:
+            embeddings = get_embeddings()
+            embeddings_ok = True
+            logger.info("[DEBUG] Embeddings initialized successfully")
+        except Exception as e:
+            logger.error(f"[DEBUG] Embeddings init failed: {e}")
+        
+        try:
+            vs = get_vectorstore_manager()
+            vectorstore_ok = True
+            logger.info("[DEBUG] Vectorstore initialized successfully")
+        except Exception as e:
+            logger.error(f"[DEBUG] Vectorstore init failed: {e}")
+        
+        try:
+            loader = get_document_loader()
+            loader_ok = True
+            logger.info("[DEBUG] Document loader initialized successfully")
+        except Exception as e:
+            logger.error(f"[DEBUG] Document loader init failed: {e}")
+        
+        return {
+            "status": "ok" if all([llm_ok, embeddings_ok, vectorstore_ok, loader_ok]) else "partial",
+            "config": config_ok,
+            "services": {
+                "llm": {"initialized": llm_ok},
+                "embeddings": {"initialized": embeddings_ok},
+                "vectorstore": {"initialized": vectorstore_ok},
+                "document_loader": {"initialized": loader_ok}
+            }
+        }
+    
+    except Exception as e:
+        logger.error(f"[DEBUG] Error in debug endpoint: {type(e).__name__}: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "type": type(e).__name__
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     

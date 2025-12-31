@@ -210,8 +210,8 @@ Answer in English:"""
                 chain_type="stuff"
             )
             
-            # Query
-            result = qa_chain({"question": question})
+            # Query - use invoke() instead of deprecated __call__
+            result = qa_chain.invoke({"question": question})
             
             answer = result.get("answer", "I couldn't generate an answer.")
             source_docs = result.get("source_documents", [])
