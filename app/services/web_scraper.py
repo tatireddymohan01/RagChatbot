@@ -187,7 +187,7 @@ class WebScraperService:
 
                 # Try to extract main content first (common patterns)
                 main_content = None
-                for selector in ["main", "article", "[role='main']", ".content", ".main-content"]:
+                for selector in ["main", "article", "[role='main']", ".content", ".main-content", ".container"]:
                     elem = soup.select_one(selector)
                     if elem:
                         main_content = elem
@@ -209,7 +209,9 @@ class WebScraperService:
                 title = soup.title.string if soup.title else urlparse(url).path or url
                 logger.info(f"[SCRAPE_TITLE] Title: {title}")
 
-                if cleaned and len(cleaned) > 100:  # Ensure we have meaningful content
+                # If content is empty or too small, try alternative extraction methods
+                if cleaned and len(cleaned) > 100:
+                    # Normal case: good content extracted
                     results.append(
                         Document(
                             page_content=cleaned,
@@ -223,8 +225,43 @@ class WebScraperService:
                     )
                     logger.info(f"[SCRAPE_SUCCESS] ✓ Document created: {len(cleaned)} chars, title: {title}")
                 else:
-                    failed.append(url)
-                    logger.warning(f"[SCRAPE_FAIL] ✗ Insufficient content from {url} ({len(cleaned)} chars, need >100)")
+                    # Try to extract from meta tags or Open Graph data
+                    logger.info(f"[SCRAPE_FALLBACK] Content too small ({len(cleaned)} chars), trying meta extraction...")
+                    
+                    meta_description = soup.find("meta", attrs={"name": "description"})
+                    og_description = soup.find("meta", attrs={"property": "og:description"})
+                    og_title = soup.find("meta", attrs={"property": "og:title"})
+                    
+                    fallback_content = []
+                    if meta_description:
+                        fallback_content.append(meta_description.get("content", ""))
+                    if og_description:
+                        fallback_content.append(og_description.get("content", ""))
+                    if og_title and og_title.get("content") != title:
+                        fallback_content.insert(0, og_title.get("content", ""))
+                    
+                    fallback_text = "\n".join([c for c in fallback_content if c])
+                    
+                    if fallback_text and len(fallback_text) > 50:
+                        logger.info(f"[SCRAPE_FALLBACK] ✓ Extracted {len(fallback_text)} chars from meta tags")
+                        results.append(
+                            Document(
+                                page_content=fallback_text,
+                                metadata={
+                                    "source": url,
+                                    "title": title,
+                                    "type": "web_page",
+                                    "domain": urlparse(url).netloc,
+                                    "extraction_method": "meta_tags"
+                                },
+                            )
+                        )
+                    else:
+                        failed.append(url)
+                        # Log HTML structure for debugging
+                        body_text = soup.body.get_text() if soup.body else ""
+                        logger.warning(f"[SCRAPE_FAIL] ✗ Insufficient content from {url} (main={len(cleaned)} chars, meta={len(fallback_text)} chars)")
+                        logger.warning(f"[SCRAPE_FAIL] Raw body length: {len(body_text)} chars. Page may use JavaScript rendering (SPA).")
                     
             except Exception as exc:
                 failed.append(url)
