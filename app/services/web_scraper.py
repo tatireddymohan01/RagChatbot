@@ -1,6 +1,6 @@
 """
 Web Scraper Service
-Handles scraping and processing web content using Selenium
+Handles scraping and processing web content using Playwright (JS-capable) with requests fallback
 """
 from typing import List
 from langchain_core.documents import Document
@@ -14,6 +14,14 @@ from bs4 import BeautifulSoup
 import time
 import requests
 from app.utils.logger import get_logger
+
+# Playwright imports
+try:
+    from playwright.async_api import async_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    async_playwright = None
 
 logger = get_logger(__name__)
 
@@ -159,109 +167,35 @@ class WebScraperService:
             raise
 
     def scrape_multiple_urls_simple(self, urls: List[str]) -> List[Document]:
-        """Lightweight HTTP + BeautifulSoup scraper (no Selenium, cloud-safe)."""
+        """
+        Scrape URLs using Playwright (handles JS rendering) with fallback to requests.
+        Cloud-safe, no ChromeDriver dependency.
+        """
         results: List[Document] = []
         failed: List[str] = []
         
-        # Standard browser User-Agent to avoid server blocks
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-        
-        logger.info(f"[SCRAPE_START] Processing {len(urls)} URLs with simple HTTP scraper")
+        logger.info(f"[SCRAPE_START] Processing {len(urls)} URLs with Playwright")
 
         for url in urls:
             try:
                 logger.info(f"[SCRAPE_FETCH] Starting: {url}")
-                resp = requests.get(url, timeout=15, headers=headers)
-                resp.raise_for_status()
-                logger.info(f"[SCRAPE_FETCH] Status 200 OK, raw HTML size: {len(resp.text)} chars")
-
-                soup = BeautifulSoup(resp.text, "html.parser")
-                logger.info(f"[SCRAPE_PARSE] BeautifulSoup parsed HTML")
                 
-                # Remove noise: scripts, styles, navigation, etc.
-                for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
-                    tag.decompose()
-                logger.info(f"[SCRAPE_CLEAN] Removed noise tags (scripts, styles, nav, etc.)")
-
-                # Try to extract main content first (common patterns)
-                main_content = None
-                for selector in ["main", "article", "[role='main']", ".content", ".main-content", ".container"]:
-                    elem = soup.select_one(selector)
-                    if elem:
-                        main_content = elem
-                        logger.info(f"[SCRAPE_MAIN] Found main content with selector: {selector}")
-                        break
+                # Try Playwright first (handles JavaScript)
+                doc = self._scrape_with_playwright(url)
+                if doc and len(doc.page_content) > 100:
+                    logger.info(f"[SCRAPE_SUCCESS] ✓ Playwright: {len(doc.page_content)} chars")
+                    results.append(doc)
+                    continue
                 
-                # Fall back to body if no main content found
-                content_elem = main_content if main_content else soup.body or soup
-                if not main_content:
-                    logger.info(f"[SCRAPE_MAIN] No main content selector matched, using body/root")
-                
-                # Extract text with better formatting
-                text = content_elem.get_text(separator="\n", strip=True)
-                lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-                cleaned = "\n".join(lines)
-                logger.info(f"[SCRAPE_TEXT] Extracted {len(lines)} lines, {len(cleaned)} chars after cleaning")
-
-                # Get title
-                title = soup.title.string if soup.title else urlparse(url).path or url
-                logger.info(f"[SCRAPE_TITLE] Title: {title}")
-
-                # If content is empty or too small, try alternative extraction methods
-                if cleaned and len(cleaned) > 100:
-                    # Normal case: good content extracted
-                    results.append(
-                        Document(
-                            page_content=cleaned,
-                            metadata={
-                                "source": url,
-                                "title": title,
-                                "type": "web_page",
-                                "domain": urlparse(url).netloc,
-                            },
-                        )
-                    )
-                    logger.info(f"[SCRAPE_SUCCESS] ✓ Document created: {len(cleaned)} chars, title: {title}")
+                # Fallback to requests + BeautifulSoup for simple pages
+                logger.info(f"[SCRAPE_FETCH] Playwright failed/empty, trying requests fallback...")
+                doc = self._scrape_with_requests(url)
+                if doc and len(doc.page_content) > 100:
+                    logger.info(f"[SCRAPE_SUCCESS] ✓ Requests: {len(doc.page_content)} chars")
+                    results.append(doc)
                 else:
-                    # Try to extract from meta tags or Open Graph data
-                    logger.info(f"[SCRAPE_FALLBACK] Content too small ({len(cleaned)} chars), trying meta extraction...")
-                    
-                    meta_description = soup.find("meta", attrs={"name": "description"})
-                    og_description = soup.find("meta", attrs={"property": "og:description"})
-                    og_title = soup.find("meta", attrs={"property": "og:title"})
-                    
-                    fallback_content = []
-                    if meta_description:
-                        fallback_content.append(meta_description.get("content", ""))
-                    if og_description:
-                        fallback_content.append(og_description.get("content", ""))
-                    if og_title and og_title.get("content") != title:
-                        fallback_content.insert(0, og_title.get("content", ""))
-                    
-                    fallback_text = "\n".join([c for c in fallback_content if c])
-                    
-                    if fallback_text and len(fallback_text) > 50:
-                        logger.info(f"[SCRAPE_FALLBACK] ✓ Extracted {len(fallback_text)} chars from meta tags")
-                        results.append(
-                            Document(
-                                page_content=fallback_text,
-                                metadata={
-                                    "source": url,
-                                    "title": title,
-                                    "type": "web_page",
-                                    "domain": urlparse(url).netloc,
-                                    "extraction_method": "meta_tags"
-                                },
-                            )
-                        )
-                    else:
-                        failed.append(url)
-                        # Log HTML structure for debugging
-                        body_text = soup.body.get_text() if soup.body else ""
-                        logger.warning(f"[SCRAPE_FAIL] ✗ Insufficient content from {url} (main={len(cleaned)} chars, meta={len(fallback_text)} chars)")
-                        logger.warning(f"[SCRAPE_FAIL] Raw body length: {len(body_text)} chars. Page may use JavaScript rendering (SPA).")
+                    failed.append(url)
+                    logger.warning(f"[SCRAPE_FAIL] ✗ Both methods failed for {url}")
                     
             except Exception as exc:
                 failed.append(url)
@@ -272,6 +206,156 @@ class WebScraperService:
             logger.warning(f"[SCRAPE_END] Failed URLs: {failed[:10]}")
 
         return results
+    
+    def _scrape_with_playwright(self, url: str) -> Document:
+        """Scrape URL using Playwright (handles JavaScript rendering)"""
+        try:
+            if not PLAYWRIGHT_AVAILABLE:
+                logger.info(f"[PLAYWRIGHT] Not available, skipping")
+                return None
+            
+            import asyncio
+            
+            # Run async playwright in sync context
+            async def scrape():
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch(headless=True)
+                    try:
+                        page = await browser.new_page(
+                            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                        )
+                        logger.info(f"[PLAYWRIGHT] Navigating to {url}")
+                        await page.goto(url, timeout=15000, wait_until="networkidle")
+                        
+                        # Get rendered HTML after JavaScript execution
+                        html_content = await page.content()
+                        logger.info(f"[PLAYWRIGHT] Rendered HTML size: {len(html_content)} chars")
+                        
+                        return html_content
+                    finally:
+                        await browser.close()
+            
+            # Get or create event loop
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            html_content = loop.run_until_complete(scrape())
+            
+            # Parse with BeautifulSoup
+            soup = BeautifulSoup(html_content, "html.parser")
+            
+            # Remove noise
+            for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
+                tag.decompose()
+            
+            # Extract main content
+            main_content = None
+            for selector in ["main", "article", "[role='main']", ".content", ".main-content", ".container"]:
+                elem = soup.select_one(selector)
+                if elem:
+                    main_content = elem
+                    break
+            
+            content_elem = main_content if main_content else soup.body or soup
+            text = content_elem.get_text(separator="\n", strip=True)
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            cleaned = "\n".join(lines)
+            
+            title = soup.title.string if soup.title else urlparse(url).path or url
+            
+            if cleaned and len(cleaned) > 100:
+                logger.info(f"[PLAYWRIGHT] ✓ Extracted {len(cleaned)} chars")
+                return Document(
+                    page_content=cleaned,
+                    metadata={
+                        "source": url,
+                        "title": title,
+                        "type": "web_page",
+                        "domain": urlparse(url).netloc,
+                        "scraper": "playwright"
+                    },
+                )
+            else:
+                logger.info(f"[PLAYWRIGHT] Content too small ({len(cleaned)} chars)")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"[PLAYWRIGHT] Error: {type(e).__name__}: {str(e)[:100]}")
+            return None
+    
+    def _scrape_with_requests(self, url: str) -> Document:
+        """Scrape URL using requests + BeautifulSoup (fallback for simple pages)"""
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            
+            logger.info(f"[REQUESTS] Fetching {url}")
+            resp = requests.get(url, timeout=15, headers=headers)
+            resp.raise_for_status()
+            logger.info(f"[REQUESTS] Status 200 OK, HTML size: {len(resp.text)} chars")
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+            
+            # Remove noise
+            for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
+                tag.decompose()
+
+            # Try main content extraction
+            main_content = None
+            for selector in ["main", "article", "[role='main']", ".content", ".main-content", ".container"]:
+                elem = soup.select_one(selector)
+                if elem:
+                    main_content = elem
+                    break
+            
+            content_elem = main_content if main_content else soup.body or soup
+            text = content_elem.get_text(separator="\n", strip=True)
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            cleaned = "\n".join(lines)
+            
+            title = soup.title.string if soup.title else urlparse(url).path or url
+            
+            # Try meta tag fallback if content is small
+            if not cleaned or len(cleaned) < 100:
+                logger.info(f"[REQUESTS] Main content too small, trying meta tags...")
+                meta_description = soup.find("meta", attrs={"name": "description"})
+                og_description = soup.find("meta", attrs={"property": "og:description"})
+                og_title = soup.find("meta", attrs={"property": "og:title"})
+                
+                fallback_parts = []
+                if og_title:
+                    fallback_parts.append(og_title.get("content", ""))
+                if meta_description:
+                    fallback_parts.append(meta_description.get("content", ""))
+                if og_description:
+                    fallback_parts.append(og_description.get("content", ""))
+                
+                cleaned = "\n".join([p for p in fallback_parts if p])
+                logger.info(f"[REQUESTS] Meta extraction: {len(cleaned)} chars")
+            
+            if cleaned and len(cleaned) > 50:
+                logger.info(f"[REQUESTS] ✓ Extracted {len(cleaned)} chars")
+                return Document(
+                    page_content=cleaned,
+                    metadata={
+                        "source": url,
+                        "title": title,
+                        "type": "web_page",
+                        "domain": urlparse(url).netloc,
+                        "scraper": "requests"
+                    },
+                )
+            else:
+                logger.info(f"[REQUESTS] Content too small ({len(cleaned)} chars)")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"[REQUESTS] Error: {type(e).__name__}: {str(e)[:100]}")
+            return None
     
     def scrape_website(self, base_url: str) -> List[Document]:
         """
