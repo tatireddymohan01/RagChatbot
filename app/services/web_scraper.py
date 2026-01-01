@@ -149,7 +149,29 @@ class WebScraperService:
 
             async def scrape():
                 async with async_playwright() as p:
-                    browser = await p.chromium.launch(headless=True)
+                    browser = await p.chromium.launch(
+                        headless=True,
+                        args=[
+                            '--disable-dev-shm-usage',  # Use /tmp instead of /dev/shm (critical for containers)
+                            '--disable-gpu',             # Disable GPU hardware acceleration
+                            '--no-sandbox',              # Required for Azure/container environments
+                            '--disable-setuid-sandbox',
+                            '--disable-web-security',
+                            '--disable-features=IsolateOrigins,site-per-process',
+                            '--disable-blink-features=AutomationControlled',
+                            '--no-first-run',
+                            '--no-default-browser-check',
+                            '--disable-background-networking',
+                            '--disable-background-timer-throttling',
+                            '--disable-backgrounding-occluded-windows',
+                            '--disable-renderer-backgrounding',
+                            '--disable-sync',
+                            '--metrics-recording-only',
+                            '--mute-audio',
+                            '--no-zygote',              # Reduce memory usage
+                            '--single-process'          # Run in single process (saves ~100-200MB)
+                        ]
+                    )
                     try:
                         page = await browser.new_page(
                             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
