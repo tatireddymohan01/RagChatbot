@@ -23,6 +23,10 @@ except ImportError:
 
 logger = get_logger(__name__)
 
+# Configuration: Disable Playwright on Azure (use requests-only fallback)
+# Set DISABLE_PLAYWRIGHT=true in Azure App Service Application Settings to skip browser automation
+DISABLE_PLAYWRIGHT = os.getenv('DISABLE_PLAYWRIGHT', 'false').lower() == 'true'
+
 # Simple guard so we only attempt a Playwright browser install once
 _playwright_install_lock = threading.Lock()
 _playwright_ready = False
@@ -137,6 +141,10 @@ class WebScraperService:
     def _scrape_with_playwright(self, url: str, allow_install: bool = True) -> Document:
         """Scrape URL using Playwright (handles JavaScript rendering)"""
         try:
+            if DISABLE_PLAYWRIGHT:
+                logger.info(f"[PLAYWRIGHT] Disabled via DISABLE_PLAYWRIGHT env var, skipping")
+                return None
+                
             if not PLAYWRIGHT_AVAILABLE:
                 logger.info(f"[PLAYWRIGHT] Not available, skipping")
                 return None
