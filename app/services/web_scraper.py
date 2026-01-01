@@ -177,7 +177,6 @@ class WebScraperService:
                             '--metrics-recording-only',
                             '--mute-audio',
                             '--no-zygote',              # Reduce memory usage
-                            '--single-process'          # Run in single process (saves ~100-200MB)
                         ]
                     )
                     try:
