@@ -61,9 +61,9 @@ logs/
 *.log
 
 # FAISS Index
-app/data/faiss_index/
-*.faiss
-*.pkl
+#app/data/faiss_index/
+#*.faiss
+#*.pkl
 
 # Document tracking
 documents/.processed_files.json
