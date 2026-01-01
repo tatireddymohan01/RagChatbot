@@ -179,6 +179,7 @@ class WebScraperService:
                             '--no-zygote',              # Reduce memory usage
                         ]
                     )
+                    page = None
                     try:
                         page = await browser.new_page(
                             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -189,6 +190,8 @@ class WebScraperService:
                         logger.info(f"[PLAYWRIGHT] Rendered HTML size: {len(html_content)} chars")
                         return html_content
                     finally:
+                        if page:
+                            await page.close()
                         await browser.close()
 
             def run_in_thread():
